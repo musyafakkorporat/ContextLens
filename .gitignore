@@ -7,4 +7,6 @@ data/processed/*
 
 results/
 
+.env
+
 .ipynb_checkpoints/
