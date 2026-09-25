@@ -26,7 +26,7 @@ DATA_FILE = (
 )
 
 OUTPUT_FILE = (
-    "results/contextlens_sample.csv"
+    "results/contextlens_sample_50.csv"
 )
 
 TOXICITY_MODEL = (
@@ -43,7 +43,7 @@ TOXICITY_THRESHOLD = 0.06
 
 POLARIZATION_THRESHOLD = 0.50
 
-SAMPLE_SIZE = 10
+SAMPLE_SIZE = 50
 
 
 # =========================
@@ -224,12 +224,10 @@ for index, row in df.iterrows():
     # TOXICITY
     # ---------------------
 
-    toxicity_prob = (
-        predict_probability(
-            text,
-            toxicity_tokenizer,
-            toxicity_model
-        )
+    toxicity_prob = predict_probability(
+        text,
+        toxicity_tokenizer,
+        toxicity_model
     )
 
     toxicity_score = float(
@@ -245,12 +243,10 @@ for index, row in df.iterrows():
     # POLARIZATION
     # ---------------------
 
-    polarization_prob = (
-        predict_probability(
-            text,
-            polarization_tokenizer,
-            polarization_model
-        )
+    polarization_prob = predict_probability(
+        text,
+        polarization_tokenizer,
+        polarization_model
     )
 
     polarization_score = float(
@@ -308,26 +304,43 @@ gunakan "unclear".
 Jangan mengarang fakta, sumber, atau bukti.
 """
 
-    response = client.models.generate_content(
-        model=GEMINI_MODEL,
-        contents=prompt,
-        config={
-            "system_instruction": (
-                "Kamu adalah analis informasi yang netral. "
-                "Jangan memihak pihak atau kelompok tertentu. "
-                "Bedakan fakta, opini, dan klaim yang belum "
-                "terverifikasi. "
-                "Reasoning pattern hanya merupakan kemungkinan, "
-                "bukan diagnosis atau kepastian."
-            ),
-            "response_mime_type": "application/json",
-            "response_schema": ContextAnalysis
-        }
-    )
+    try:
 
-    analysis = ContextAnalysis.model_validate_json(
-        response.text
-    )
+        response = client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=prompt,
+            config={
+                "system_instruction": (
+                    "Kamu adalah analis informasi yang netral. "
+                    "Jangan memihak pihak atau kelompok tertentu. "
+                    "Bedakan fakta, opini, dan klaim yang belum "
+                    "terverifikasi. "
+                    "Reasoning pattern hanya merupakan kemungkinan, "
+                    "bukan diagnosis atau kepastian."
+                ),
+                "response_mime_type": "application/json",
+                "response_schema": ContextAnalysis
+            }
+        )
+
+        analysis = ContextAnalysis.model_validate_json(
+            response.text
+        )
+
+    except Exception as e:
+
+        print(
+            "Gemini gagal:",
+            str(e)
+        )
+
+        analysis = ContextAnalysis(
+            summary="Analisis Gemini gagal diproses.",
+            claim="",
+            content_type="unclear",
+            reasoning_pattern="",
+            evidence_needed=""
+        )
 
 
     # ---------------------
