@@ -1,5 +1,6 @@
 import os
 
+import numpy as np
 import pandas as pd
 import torch
 
@@ -11,6 +12,8 @@ from transformers import (
     AutoTokenizer,
     AutoModelForSequenceClassification
 )
+
+from sentence_transformers import SentenceTransformer
 
 from google import genai
 
@@ -27,9 +30,28 @@ POLARIZATION_MODEL = (
     "results/polarized_indobertweet_1000/final_model"
 )
 
+EMBEDDING_MODEL = (
+    "sentence-transformers/"
+    "paraphrase-multilingual-MiniLM-L12-v2"
+)
+
+EMBEDDINGS_FILE = (
+    "data/reference/mafindo_embeddings.npy"
+)
+
+METADATA_FILE = (
+    "data/reference/mafindo_metadata.csv"
+)
+
 GEMINI_MODEL = "gemini-3.5-flash-lite"
 
 TOXICITY_THRESHOLD = 0.06
+
+MAFINDO_MIN_SCORE = 0.62
+
+MAFINDO_TOP_K = 5
+
+MAFINDO_MAX_CONTEXT = 3
 
 
 # =========================
@@ -117,15 +139,47 @@ print("Polarization model siap.")
 
 
 # =========================
+# LOAD MAFINDO
+# =========================
+
+print("\n=== LOAD MAFINDO REFERENCE ===")
+
+mafindo_embeddings = np.load(
+    EMBEDDINGS_FILE
+)
+
+mafindo_metadata = pd.read_csv(
+    METADATA_FILE
+)
+
+embedding_model = SentenceTransformer(
+    EMBEDDING_MODEL
+)
+
+print(
+    "MAfindo reference:",
+    len(mafindo_metadata),
+    "data"
+)
+
+print(
+    "Embedding shape:",
+    mafindo_embeddings.shape
+)
+
+
+# =========================
 # TEXT INPUT
 # =========================
 
-text = """
-Banyak orang bilang belajar programming sudah tidak penting
-karena AI sekarang bisa membuat kode sendiri. Menurut saya,
-mahasiswa tetap perlu belajar programming supaya memahami
-bagaimana software bekerja.
-"""
+text = input(
+    "\nMasukkan teks yang ingin dianalisis:\n> "
+).strip()
+
+if not text:
+    raise ValueError(
+        "Teks tidak boleh kosong."
+    )
 
 
 # =========================
@@ -170,6 +224,52 @@ def predict_class(
 
 
 # =========================
+# MAFINDO SEARCH
+# =========================
+
+def search_mafindo(text):
+
+    query_embedding = embedding_model.encode(
+        [text],
+        normalize_embeddings=True
+    )[0]
+
+    scores = (
+        mafindo_embeddings
+        @ query_embedding
+    )
+
+    top_indices = np.argsort(
+        scores
+    )[::-1][:MAFINDO_TOP_K]
+
+    results = []
+
+    for index in top_indices:
+
+        score = float(
+            scores[index]
+        )
+
+        if score < MAFINDO_MIN_SCORE:
+            continue
+
+        row = mafindo_metadata.iloc[index]
+
+        results.append({
+            "title": str(row["title"]),
+            "content": str(row["content"]),
+            "is_hoax": int(row["is_hoax"]),
+            "score": score
+        })
+
+        if len(results) >= MAFINDO_MAX_CONTEXT:
+            break
+
+    return results
+
+
+# =========================
 # TOXICITY
 # =========================
 
@@ -206,6 +306,10 @@ polarization_prediction, polarization_prob = (
     )
 )
 
+polarization_score = float(
+    polarization_prob[1]
+)
+
 
 # =========================
 # DISPLAY ML RESULTS
@@ -224,7 +328,7 @@ print(
 print(
     "Polarization probability:",
     round(
-        float(polarization_prob[1]),
+        polarization_score,
         4
     )
 )
@@ -233,6 +337,82 @@ print(
     "Polarization:",
     polarization_prediction
 )
+
+
+# =========================
+# MAFINDO RETRIEVAL
+# =========================
+
+print("\n=== MAFINDO RETRIEVAL ===")
+
+mafindo_results = search_mafindo(
+    text
+)
+
+if not mafindo_results:
+
+    print(
+        "Tidak ditemukan reference MAfindo "
+        "dengan similarity yang cukup."
+    )
+
+else:
+
+    print(
+        "Reference ditemukan:",
+        len(mafindo_results)
+    )
+
+    for i, item in enumerate(
+        mafindo_results,
+        start=1
+    ):
+
+        print(
+            f"\n{i}.",
+            item["title"]
+        )
+
+        print(
+            "Similarity:",
+            round(
+                item["score"],
+                4
+            )
+        )
+
+        print(
+            "Kategori dataset:",
+            item["is_hoax"]
+        )
+
+
+# =========================
+# BUILD REFERENCE CONTEXT
+# =========================
+
+reference_context = ""
+
+for i, item in enumerate(
+    mafindo_results,
+    start=1
+):
+
+    reference_context += f"""
+REFERENCE {i}
+
+Judul:
+{item["title"]}
+
+Kategori dataset:
+{item["is_hoax"]}
+
+Similarity:
+{item["score"]:.4f}
+
+Isi:
+{item["content"]}
+"""
 
 
 # =========================
@@ -255,10 +435,27 @@ Toxicity:
 
 Polarization:
 - label: {polarization_prediction}
-- probability: {float(polarization_prob[1]):.4f}
+- probability: {polarization_score:.4f}
 
 Gunakan hasil model tersebut hanya sebagai sinyal tambahan,
 bukan sebagai kebenaran mutlak.
+
+Berikut adalah reference dari dataset MAfindo yang ditemukan
+berdasarkan semantic similarity.
+
+{reference_context if reference_context else "Tidak ada reference MAfindo yang memenuhi threshold."}
+
+PENTING:
+- Reference MAfindo hanya merupakan konteks pendukung.
+- Similarity tinggi tidak berarti teks pengguna pasti sama
+  dengan reference.
+- Jangan menyatakan klaim pengguna pasti hoaks hanya karena
+  reference memiliki kategori hoaks.
+- Kategori dataset MAfindo bukan bukti otomatis bahwa klaim
+  pengguna benar atau salah.
+- Jika reference hanya menunjukkan pola yang mirip, jelaskan
+  bahwa reference tersebut hanya relevan sebagai konteks.
+- Jangan mengarang fakta, sumber, atau bukti yang tidak ada.
 
 Tugas:
 1. Buat ringkasan singkat.
@@ -271,8 +468,7 @@ Tugas:
 5. Jelaskan bukti atau konteks apa yang dibutuhkan untuk
    memeriksa klaim tersebut.
 
-Jangan mengarang sumber, fakta, atau bukti yang tidak ada
-dalam teks.
+Gunakan bahasa Indonesia yang netral dan hati-hati.
 """
 
 
@@ -312,6 +508,7 @@ print("\n==============================")
 print("CONTEXTLENS RESULT")
 print("==============================")
 
+
 print(
     "\n[Toxicity]"
 )
@@ -342,10 +539,33 @@ print(
 print(
     "Probability:",
     round(
-        float(polarization_prob[1]),
+        polarization_score,
         4
     )
 )
+
+
+print(
+    "\n[MAfindo Reference]"
+)
+
+if mafindo_results:
+
+    for i, item in enumerate(
+        mafindo_results,
+        start=1
+    ):
+
+        print(
+            f"{i}. {item['title']} "
+            f"(similarity={item['score']:.4f})"
+        )
+
+else:
+
+    print(
+        "Tidak ada reference yang cukup relevan."
+    )
 
 
 print(
