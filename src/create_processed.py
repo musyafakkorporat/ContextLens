@@ -1,5 +1,5 @@
 import pandas as pd
-import ast
+import re
 from collections import Counter
 
 input_file = "data/raw/indotoxic2024_annotated_data_v2_final.csv"
@@ -12,7 +12,7 @@ def majority_vote(label_string):
     if pd.isna(label_string):
         return None
 
-    labels = ast.literal_eval(label_string)
+    labels = re.findall(r"['\"]([01])['\"]", str(label_string))
     labels = [int(label) for label in labels]
 
     count = Counter(labels)
