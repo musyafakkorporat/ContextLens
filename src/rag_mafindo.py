@@ -14,6 +14,8 @@ EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 GEMINI_MODEL = "gemini-3.5-flash-lite"
 
 TOP_K = 5
+MAX_CONTEXT = 3
+MIN_SCORE = 0.62
 
 
 def load_retriever():
@@ -29,7 +31,7 @@ def load_retriever():
     return model, embeddings, metadata
 
 
-def semantic_search(query, model, embeddings, metadata, top_k=5):
+def semantic_search(query, model, embeddings, metadata):
     query_embedding = model.encode(
         [query],
         normalize_embeddings=True
@@ -37,13 +39,15 @@ def semantic_search(query, model, embeddings, metadata, top_k=5):
 
     scores = embeddings @ query_embedding
 
-    top_indices = np.argsort(scores)[::-1][:top_k]
+    top_indices = np.argsort(scores)[::-1][:TOP_K]
 
     results = []
 
     for index in top_indices:
+        score = float(scores[index])
+
         results.append({
-            "score": float(scores[index]),
+            "score": score,
             "title": str(metadata.iloc[index]["title"]),
             "content": str(metadata.iloc[index]["content"]),
             "is_hoax": int(metadata.iloc[index]["is_hoax"])
@@ -52,16 +56,32 @@ def semantic_search(query, model, embeddings, metadata, top_k=5):
     return results
 
 
+def filter_results(results):
+    filtered = [
+        result
+        for result in results
+        if result["score"] >= MIN_SCORE
+    ]
+
+    return filtered[:MAX_CONTEXT]
+
+
 def build_context(results):
     context_parts = []
 
     for i, result in enumerate(results, start=1):
+        category = (
+            "Hoaks"
+            if result["is_hoax"] == 1
+            else "Non-hoaks"
+        )
+
         context_parts.append(
             f"""
 REFERENSI {i}
 Judul: {result['title']}
-Kategori referensi: {"Hoaks" if result['is_hoax'] == 1 else "Non-hoaks"}
-Kemiripan: {result['score']:.4f}
+Kategori pada dataset: {category}
+Similarity score: {result['score']:.4f}
 
 Isi:
 {result['content']}
@@ -75,42 +95,40 @@ def analyze_with_gemini(query, context, client):
     prompt = f"""
 Anda adalah bagian dari sistem ContextLens.
 
-Tugas Anda adalah membantu pengguna memahami sebuah informasi
-dengan menggunakan referensi yang ditemukan dari database MAfindo.
-
-Jangan langsung menyatakan bahwa teks pengguna benar atau hoaks
-hanya berdasarkan kemiripan dengan referensi.
-
-Gunakan bahasa Indonesia yang sederhana dan netral.
+Tugas Anda adalah membantu pengguna memahami informasi
+berdasarkan referensi yang ditemukan.
 
 Teks pengguna:
 {query}
 
-Referensi yang ditemukan:
+Referensi:
 {context}
 
-Berikan analisis dengan format:
+Aturan penting:
+1. Referensi hanya digunakan sebagai konteks pendukung.
+2. Jangan menyatakan teks pengguna pasti benar atau pasti hoaks
+   hanya berdasarkan similarity.
+3. Jangan menganggap kategori dataset sebagai kebenaran otomatis
+   terhadap teks pengguna.
+4. Jelaskan apabila referensi hanya menunjukkan pola yang mirip.
+5. Jangan mengarang fakta yang tidak terdapat pada referensi.
+6. Gunakan bahasa Indonesia yang sederhana dan netral.
+
+Berikan:
 
 Ringkasan:
-- Jelaskan secara singkat isi informasi pengguna.
+- Ringkas informasi pengguna.
 
 Kecocokan dengan referensi:
-- Jelaskan apakah terdapat referensi yang memiliki konteks atau
-  pola yang mirip.
-- Sebutkan referensi yang paling relevan.
+- Jelaskan referensi mana yang paling relevan.
+- Jelaskan persamaan konteksnya.
 
 Konteks:
-- Jelaskan informasi penting yang ditemukan dari referensi.
+- Jelaskan informasi penting dari referensi.
 
 Kesimpulan:
 - Berikan kesimpulan yang hati-hati.
-- Jika referensi menunjukkan klaim serupa pernah dikategorikan
-  sebagai hoaks, katakan bahwa "referensi tersebut dikategorikan
-  sebagai hoaks", bukan bahwa teks pengguna pasti hoaks.
-- Jika tidak cukup bukti, katakan bahwa informasi belum cukup
-  untuk menentukan kebenaran klaim.
-
-Jangan mengarang fakta yang tidak terdapat pada referensi.
+- Jika bukti belum cukup, katakan bahwa bukti belum cukup.
 """
 
     response = client.models.generate_content(
@@ -138,8 +156,10 @@ def main():
     print()
     print("=" * 80)
     print("ContextLens - RAG MAfindo")
-    print("Ketik 'exit' untuk keluar.")
     print("=" * 80)
+    print(f"Minimal similarity : {MIN_SCORE}")
+    print(f"Maksimal context   : {MAX_CONTEXT}")
+    print("Ketik 'exit' untuk keluar.")
 
     while True:
         query = input("\nTeks pengguna: ").strip()
@@ -152,15 +172,35 @@ def main():
             continue
 
         print("\nMencari referensi...")
-        results = semantic_search(
+
+        all_results = semantic_search(
             query,
             model,
             embeddings,
-            metadata,
-            TOP_K
+            metadata
         )
 
-        print("\nReferensi ditemukan:")
+        print("\nTop hasil sebelum filter:")
+
+        for i, result in enumerate(all_results, start=1):
+            print(
+                f"{i}. {result['title']} "
+                f"(score={result['score']:.4f})"
+            )
+
+        results = filter_results(all_results)
+
+        print(
+            f"\nReferensi setelah filter: "
+            f"{len(results)}"
+        )
+
+        if not results:
+            print(
+                "Tidak ditemukan referensi dengan "
+                f"similarity >= {MIN_SCORE}."
+            )
+            continue
 
         for i, result in enumerate(results, start=1):
             print(
