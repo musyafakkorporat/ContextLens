@@ -10,3 +10,5 @@ results/
 .env
 
 .ipynb_checkpoints/
+data/reference/*
+data/test_cases_original.csv
