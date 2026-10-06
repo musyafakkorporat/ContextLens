@@ -23,11 +23,11 @@ from google import genai
 # =========================
 
 TOXICITY_MODEL = (
-    "results/toxicity_indobertweet_1000/final_model"
+    "results/toxicity_indobertweet_5000/final_model"
 )
 
 POLARIZATION_MODEL = (
-    "results/polarized_indobertweet_1000/final_model"
+    "results/polarized_indobertweet_5000/final_model"
 )
 
 EMBEDDING_MODEL = (
