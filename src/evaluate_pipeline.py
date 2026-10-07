@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import torch
 
+from typing import Literal
 from dotenv import load_dotenv
 from google import genai
 from pydantic import BaseModel
@@ -72,7 +73,12 @@ class ContextAnalysis(BaseModel):
 
     summary: str
     claim: str
-    content_type: str
+    content_type: Literal[
+        "fact",
+        "opinion",
+        "prediction",
+        "mixed"
+    ]
     reasoning_pattern: str
     evidence_needed: str
 
@@ -291,8 +297,27 @@ REFERENSI MAfindo:
 
 Aturan:
 
-1. Tentukan content_type:
-   fact, opinion, prediction, mixed, atau unclear.
+1. Tentukan content_type hanya dari empat pilihan berikut:
+
+   fact:
+   Informasi atau kejadian yang disampaikan sebagai pernyataan,
+   termasuk ketika teks melaporkan bahwa seseorang, akun, pemerintah,
+   perusahaan, atau pihak lain mengatakan atau mengumumkan sesuatu.
+
+   opinion:
+   Pendapat, preferensi, penilaian, keyakinan, atau sudut pandang.
+
+   prediction:
+   Perkiraan atau ramalan mengenai sesuatu yang belum terjadi.
+   Jangan gunakan prediction hanya karena suatu kejadian terjadi
+   pada waktu mendatang tetapi sudah dinyatakan sebagai keputusan
+   atau pengumuman.
+
+   mixed:
+   Teks secara jelas menggabungkan dua atau lebih tipe di atas.
+
+   Pilih tepat satu dari:
+   fact, opinion, prediction, mixed.
 
 2. Identifikasi klaim utama.
 
@@ -322,7 +347,8 @@ Aturan:
         contents=prompt,
         config={
             "response_mime_type": "application/json",
-            "response_schema": ContextAnalysis
+            "response_schema": ContextAnalysis,
+            "temperature": 0
         }
     )
 
@@ -678,10 +704,6 @@ print(
 # CONTENT TYPE
 # =========================
 
-# =========================
-# CONTENT TYPE
-# =========================
-
 valid_content_results = results_df[
     results_df["predicted_content_type"] != "error"
 ].copy()
@@ -730,6 +752,7 @@ else:
             zero_division=0
         )
     )
+
 
 # =========================
 # MAFINDO RETRIEVAL
