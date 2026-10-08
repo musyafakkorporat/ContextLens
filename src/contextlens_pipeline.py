@@ -181,14 +181,18 @@ print(
 # TEXT INPUT
 # =========================
 
-text = input(
-    "\nMasukkan teks yang ingin dianalisis:\n> "
-).strip()
+def validate_text(text):
 
-if not text:
-    raise ValueError(
-        "Teks tidak boleh kosong."
-    )
+    text = str(
+        text
+    ).strip()
+
+    if not text:
+        raise ValueError(
+            "Teks tidak boleh kosong."
+        )
+
+    return text
 
 
 # =========================
@@ -307,238 +311,238 @@ def search_mafindo(text):
 
 
 # =========================
-# TOXICITY
+# ANALYZE TEXT
 # =========================
 
-print("\n=== TOXICITY ===")
+def analyze_text(text):
 
-toxicity_prediction, toxicity_prob = (
-    predict_class(
-        text,
-        toxicity_tokenizer,
-        toxicity_model
+    text = validate_text(
+        text
     )
-)
 
-toxicity_score = float(
-    toxicity_prob[1]
-)
+    # =========================
+    # TOXICITY
+    # =========================
 
+    print("\n=== TOXICITY ===")
 
-# -------------------------
-# TOXICITY CALIBRATION
-# -------------------------
-
-toxicity_calibrated_score = calibrate_probability(
-    toxicity_score,
-    TOXICITY_TEMPERATURE
-)
-
-toxicity_calibrated_threshold = calibrate_probability(
-    TOXICITY_RAW_THRESHOLD,
-    TOXICITY_TEMPERATURE
-)
-
-
-# -------------------------
-# TOXICITY UNCERTAINTY
-# -------------------------
-
-toxicity_uncertain = (
-    abs(
-        toxicity_calibrated_score
-        - toxicity_calibrated_threshold
+    toxicity_prediction, toxicity_prob = (
+        predict_class(
+            text,
+            toxicity_tokenizer,
+            toxicity_model
+        )
     )
-    < TOXICITY_UNCERTAIN_DELTA
-)
 
-toxicity_status = (
-    "uncertain"
-    if toxicity_uncertain
-    else "confident"
-)
-
-
-# -------------------------
-# TOXICITY LABEL
-# -------------------------
-
-toxicity_result = int(
-    toxicity_score >= TOXICITY_THRESHOLD
-)
-
-
-# =========================
-# POLARIZATION
-# =========================
-
-print("\n=== POLARIZATION ===")
-
-polarization_prediction, polarization_prob = (
-    predict_class(
-        text,
-        polarization_tokenizer,
-        polarization_model
+    toxicity_score = float(
+        toxicity_prob[1]
     )
-)
 
-polarization_score = float(
-    polarization_prob[1]
-)
+    # -------------------------
+    # TOXICITY CALIBRATION
+    # -------------------------
 
-
-# -------------------------
-# POLARIZATION CALIBRATION
-# -------------------------
-
-polarization_calibrated_score = calibrate_probability(
-    polarization_score,
-    POLARIZATION_TEMPERATURE
-)
-
-polarization_calibrated_threshold = calibrate_probability(
-    POLARIZATION_RAW_THRESHOLD,
-    POLARIZATION_TEMPERATURE
-)
-
-
-# -------------------------
-# POLARIZATION UNCERTAINTY
-# -------------------------
-
-polarization_uncertain = (
-    abs(
-        polarization_calibrated_score
-        - polarization_calibrated_threshold
-    )
-    < POLARIZATION_UNCERTAIN_DELTA
-)
-
-polarization_status = (
-    "uncertain"
-    if polarization_uncertain
-    else "confident"
-)
-
-
-# =========================
-# DISPLAY ML RESULTS
-# =========================
-
-print(
-    "Toxicity probability:",
-    round(
+    toxicity_calibrated_score = calibrate_probability(
         toxicity_score,
-        4
+        TOXICITY_TEMPERATURE
     )
-)
 
-print(
-    "Toxicity calibrated probability:",
-    round(
-        toxicity_calibrated_score,
-        4
+    toxicity_calibrated_threshold = calibrate_probability(
+        TOXICITY_RAW_THRESHOLD,
+        TOXICITY_TEMPERATURE
     )
-)
 
-print(
-    "Toxicity status:",
-    toxicity_status
-)
+    # -------------------------
+    # TOXICITY UNCERTAINTY
+    # -------------------------
 
-print(
-    "Toxicity:",
-    toxicity_result
-)
+    toxicity_uncertain = (
+        abs(
+            toxicity_calibrated_score
+            - toxicity_calibrated_threshold
+        )
+        < TOXICITY_UNCERTAIN_DELTA
+    )
 
+    toxicity_status = (
+        "uncertain"
+        if toxicity_uncertain
+        else "confident"
+    )
 
-print(
-    "Polarization probability:",
-    round(
+    # -------------------------
+    # TOXICITY LABEL
+    # -------------------------
+
+    toxicity_result = int(
+        toxicity_score >= TOXICITY_THRESHOLD
+    )
+
+    # =========================
+    # POLARIZATION
+    # =========================
+
+    print("\n=== POLARIZATION ===")
+
+    polarization_prediction, polarization_prob = (
+        predict_class(
+            text,
+            polarization_tokenizer,
+            polarization_model
+        )
+    )
+
+    polarization_score = float(
+        polarization_prob[1]
+    )
+
+    # -------------------------
+    # POLARIZATION CALIBRATION
+    # -------------------------
+
+    polarization_calibrated_score = calibrate_probability(
         polarization_score,
-        4
+        POLARIZATION_TEMPERATURE
     )
-)
 
-print(
-    "Polarization calibrated probability:",
-    round(
-        polarization_calibrated_score,
-        4
+    polarization_calibrated_threshold = calibrate_probability(
+        POLARIZATION_RAW_THRESHOLD,
+        POLARIZATION_TEMPERATURE
     )
-)
 
-print(
-    "Polarization status:",
-    polarization_status
-)
+    # -------------------------
+    # POLARIZATION UNCERTAINTY
+    # -------------------------
 
-print(
-    "Polarization:",
-    polarization_prediction
-)
+    polarization_uncertain = (
+        abs(
+            polarization_calibrated_score
+            - polarization_calibrated_threshold
+        )
+        < POLARIZATION_UNCERTAIN_DELTA
+    )
 
+    polarization_status = (
+        "uncertain"
+        if polarization_uncertain
+        else "confident"
+    )
 
-# =========================
-# MAFINDO RETRIEVAL
-# =========================
-
-print("\n=== MAFINDO RETRIEVAL ===")
-
-mafindo_results = search_mafindo(
-    text
-)
-
-if not mafindo_results:
+    # =========================
+    # DISPLAY ML RESULTS
+    # =========================
 
     print(
-        "Tidak ditemukan reference MAfindo "
-        "dengan similarity yang cukup."
+        "Toxicity probability:",
+        round(
+            toxicity_score,
+            4
+        )
     )
-
-else:
 
     print(
-        "Reference ditemukan:",
-        len(mafindo_results)
+        "Toxicity calibrated probability:",
+        round(
+            toxicity_calibrated_score,
+            4
+        )
     )
+
+    print(
+        "Toxicity status:",
+        toxicity_status
+    )
+
+    print(
+        "Toxicity:",
+        toxicity_result
+    )
+
+    print(
+        "Polarization probability:",
+        round(
+            polarization_score,
+            4
+        )
+    )
+
+    print(
+        "Polarization calibrated probability:",
+        round(
+            polarization_calibrated_score,
+            4
+        )
+    )
+
+    print(
+        "Polarization status:",
+        polarization_status
+    )
+
+    print(
+        "Polarization:",
+        polarization_prediction
+    )
+
+    # =========================
+    # MAFINDO RETRIEVAL
+    # =========================
+
+    print("\n=== MAFINDO RETRIEVAL ===")
+
+    mafindo_results = search_mafindo(
+        text
+    )
+
+    if not mafindo_results:
+
+        print(
+            "Tidak ditemukan reference MAfindo "
+            "dengan similarity yang cukup."
+        )
+
+    else:
+
+        print(
+            "Reference ditemukan:",
+            len(mafindo_results)
+        )
+
+        for i, item in enumerate(
+            mafindo_results,
+            start=1
+        ):
+
+            print(
+                f"\n{i}.",
+                item["title"]
+            )
+
+            print(
+                "Similarity:",
+                round(
+                    item["score"],
+                    4
+                )
+            )
+
+            print(
+                "Kategori dataset:",
+                item["is_hoax"]
+            )
+
+    # =========================
+    # BUILD REFERENCE CONTEXT
+    # =========================
+
+    reference_context = ""
 
     for i, item in enumerate(
         mafindo_results,
         start=1
     ):
 
-        print(
-            f"\n{i}.",
-            item["title"]
-        )
-
-        print(
-            "Similarity:",
-            round(
-                item["score"],
-                4
-            )
-        )
-
-        print(
-            "Kategori dataset:",
-            item["is_hoax"]
-        )
-
-
-# =========================
-# BUILD REFERENCE CONTEXT
-# =========================
-
-reference_context = ""
-
-for i, item in enumerate(
-    mafindo_results,
-    start=1
-):
-
-    reference_context += f"""
+        reference_context += f"""
 REFERENCE {i}
 
 Judul:
@@ -554,14 +558,13 @@ Isi:
 {item["content"]}
 """
 
+    # =========================
+    # GEMINI
+    # =========================
 
-# =========================
-# GEMINI
-# =========================
+    print("\n=== GEMINI ANALYSIS ===")
 
-print("\n=== GEMINI ANALYSIS ===")
-
-prompt = f"""
+    prompt = f"""
 Analisis teks berikut secara netral.
 
 TEKS:
@@ -630,174 +633,195 @@ TUGAS:
 Gunakan bahasa Indonesia yang netral dan hati-hati.
 """
 
+    response = client.models.generate_content(
 
-response = client.models.generate_content(
+        model=GEMINI_MODEL,
 
-    model=GEMINI_MODEL,
+        contents=prompt,
 
-    contents=prompt,
+        config={
+            "system_instruction": (
+                "Kamu adalah analis informasi yang netral. "
+                "Jangan memihak tokoh, kelompok, negara, partai, "
+                "atau pandangan politik tertentu. "
+                "Bedakan fakta dari opini dan klaim yang belum "
+                "terverifikasi. "
+                "Gunakan bahasa yang hati-hati. "
+                "Jangan menganggap prediksi model sebagai bukti "
+                "bahwa suatu klaim benar atau salah."
+            ),
 
-    config={
-        "system_instruction": (
-            "Kamu adalah analis informasi yang netral. "
-            "Jangan memihak tokoh, kelompok, negara, partai, "
-            "atau pandangan politik tertentu. "
-            "Bedakan fakta dari opini dan klaim yang belum "
-            "terverifikasi. "
-            "Gunakan bahasa yang hati-hati. "
-            "Jangan menganggap prediksi model sebagai bukti "
-            "bahwa suatu klaim benar atau salah."
-        ),
+            "response_mime_type": "application/json",
 
-        "response_mime_type": "application/json",
+            "response_schema": ContextAnalysis,
 
-        "response_schema": ContextAnalysis,
-
-        "temperature": 0
-    }
-)
-
-
-result = ContextAnalysis.model_validate_json(
-    response.text
-)
-
-
-# =========================
-# FINAL RESULT
-# =========================
-
-print("\n==============================")
-print("CONTEXTLENS RESULT")
-print("==============================")
-
-
-# =========================
-# FINAL TOXICITY
-# =========================
-
-print(
-    "\n[Toxicity]"
-)
-
-print(
-    "Label:",
-    toxicity_result
-)
-
-print(
-    "Probability:",
-    round(
-        toxicity_score,
-        4
+            "temperature": 0
+        }
     )
-)
 
-print(
-    "Calibrated probability:",
-    round(
-        toxicity_calibrated_score,
-        4
+    result = ContextAnalysis.model_validate_json(
+        response.text
     )
-)
 
-print(
-    "Status:",
-    toxicity_status
-)
+    # =========================
+    # FINAL RESULT
+    # =========================
 
-
-# =========================
-# FINAL POLARIZATION
-# =========================
-
-print(
-    "\n[Polarization]"
-)
-
-print(
-    "Label:",
-    polarization_prediction
-)
-
-print(
-    "Probability:",
-    round(
-        polarization_score,
-        4
-    )
-)
-
-print(
-    "Calibrated probability:",
-    round(
-        polarization_calibrated_score,
-        4
-    )
-)
-
-print(
-    "Status:",
-    polarization_status
-)
-
-
-# =========================
-# FINAL MAFINDO
-# =========================
-
-print(
-    "\n[MAfindo Reference]"
-)
-
-if mafindo_results:
-
-    for i, item in enumerate(
-        mafindo_results,
-        start=1
-    ):
-
-        print(
-            f"{i}. {item['title']} "
-            f"(similarity={item['score']:.4f})"
-        )
-
-else:
+    print("\n==============================")
+    print("CONTEXTLENS RESULT")
+    print("==============================")
 
     print(
-        "Tidak ada reference yang cukup relevan."
+        "\n[Toxicity]"
     )
 
+    print(
+        "Label:",
+        toxicity_result
+    )
 
-# =========================
-# FINAL GEMINI
-# =========================
+    print(
+        "Probability:",
+        round(
+            toxicity_score,
+            4
+        )
+    )
 
-print(
-    "\n[Gemini]"
-)
+    print(
+        "Calibrated probability:",
+        round(
+            toxicity_calibrated_score,
+            4
+        )
+    )
 
-print(
-    "Summary:",
-    result.summary
-)
+    print(
+        "Status:",
+        toxicity_status
+    )
 
-print(
-    "Claim:",
-    result.claim
-)
+    print(
+        "\n[Polarization]"
+    )
 
-print(
-    "Content type:",
-    result.content_type
-)
+    print(
+        "Label:",
+        polarization_prediction
+    )
 
-print(
-    "Reasoning pattern:",
-    result.reasoning_pattern
-)
+    print(
+        "Probability:",
+        round(
+            polarization_score,
+            4
+        )
+    )
 
-print(
-    "Evidence needed:",
-    result.evidence_needed
-)
+    print(
+        "Calibrated probability:",
+        round(
+            polarization_calibrated_score,
+            4
+        )
+    )
+
+    print(
+        "Status:",
+        polarization_status
+    )
+
+    print(
+        "\n[MAfindo Reference]"
+    )
+
+    if mafindo_results:
+
+        for i, item in enumerate(
+            mafindo_results,
+            start=1
+        ):
+
+            print(
+                f"{i}. {item['title']} "
+                f"(similarity={item['score']:.4f})"
+            )
+
+    else:
+
+        print(
+            "Tidak ada reference yang cukup relevan."
+        )
+
+    print(
+        "\n[Gemini]"
+    )
+
+    print(
+        "Summary:",
+        result.summary
+    )
+
+    print(
+        "Claim:",
+        result.claim
+    )
+
+    print(
+        "Content type:",
+        result.content_type
+    )
+
+    print(
+        "Reasoning pattern:",
+        result.reasoning_pattern
+    )
+
+    print(
+        "Evidence needed:",
+        result.evidence_needed
+    )
+
+    # =========================
+    # RETURN API RESULT
+    # =========================
+
+    return {
+        "text": text,
+
+        "toxicity": {
+            "label": toxicity_result,
+            "probability": toxicity_score,
+            "calibrated_probability": (
+                toxicity_calibrated_score
+            ),
+            "status": toxicity_status
+        },
+
+        "polarization": {
+            "label": polarization_prediction,
+            "probability": polarization_score,
+            "calibrated_probability": (
+                polarization_calibrated_score
+            ),
+            "status": polarization_status
+        },
+
+        "mafindo_references": [
+            {
+                "title": item["title"],
+                "content": item["content"],
+                "is_hoax": item["is_hoax"],
+                "similarity": item["score"]
+            }
+            for item in mafindo_results
+        ],
+
+        "gemini": {
+            "summary": result.summary,
+            "claim": result.claim,
+            "content_type": result.content_type,
+            "reasoning_pattern": result.reasoning_pattern,
+            "evidence_needed": result.evidence_needed
+        }
+    }
