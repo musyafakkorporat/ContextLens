@@ -1,0 +1,14 @@
+--index-url https://download.pytorch.org/whl/cpu
+--extra-index-url https://pypi.org/simple
+
+torch==2.14.1
+transformers==5.18.0
+sentence-transformers==6.1.0
+google-genai==2.28.0
+huggingface-hub==1.33.0
+fastapi==0.143.0
+uvicorn==0.54.0
+numpy==2.5.3
+pandas==3.0.6
+python-dotenv
+pydantic==2.13.5

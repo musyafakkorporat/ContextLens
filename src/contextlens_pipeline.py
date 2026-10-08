@@ -17,6 +17,11 @@ from sentence_transformers import SentenceTransformer
 
 from google import genai
 
+from huggingface_hub import (
+    get_token,
+    hf_hub_download
+)
+
 from calibration_config import (
     TOXICITY_TEMPERATURE,
     POLARIZATION_TEMPERATURE,
@@ -32,11 +37,11 @@ from calibration_config import (
 # =========================
 
 TOXICITY_MODEL = (
-    "results/toxicity_indobertweet_5000/final_model"
+    "muss05/contextlens-toxicity"
 )
 
 POLARIZATION_MODEL = (
-    "results/polarized_indobertweet_5000/final_model"
+    "muss05/contextlens-polarization"
 )
 
 EMBEDDING_MODEL = (
@@ -44,17 +49,25 @@ EMBEDDING_MODEL = (
     "paraphrase-multilingual-MiniLM-L12-v2"
 )
 
-EMBEDDINGS_FILE = (
-    "data/reference/mafindo_embeddings.npy"
+MAFINDO_REPO = (
+    "muss05/contextlens-mafindo"
 )
 
-METADATA_FILE = (
-    "data/reference/mafindo_metadata.csv"
+MAFINDO_EMBEDDINGS_FILE = (
+    "mafindo_embeddings.npy"
 )
 
-GEMINI_MODEL = "gemini-3.5-flash-lite"
+MAFINDO_METADATA_FILE = (
+    "mafindo_metadata.csv"
+)
 
-TOXICITY_THRESHOLD = TOXICITY_RAW_THRESHOLD
+GEMINI_MODEL = (
+    "gemini-3.5-flash-lite"
+)
+
+TOXICITY_THRESHOLD = (
+    TOXICITY_RAW_THRESHOLD
+)
 
 MAFINDO_MIN_SCORE = 0.62
 
@@ -69,6 +82,11 @@ MAFINDO_MAX_CONTEXT = 3
 
 load_dotenv()
 
+
+# =========================
+# GEMINI API KEY
+# =========================
+
 api_key = os.getenv(
     "GEMINI_API_KEY"
 )
@@ -77,6 +95,28 @@ if not api_key:
     raise ValueError(
         "GEMINI_API_KEY belum ditemukan di .env"
     )
+
+
+# =========================
+# HUGGING FACE TOKEN
+# =========================
+
+HF_TOKEN = (
+    os.getenv("HF_TOKEN")
+    or get_token()
+)
+
+if not HF_TOKEN:
+    raise ValueError(
+        "HF_TOKEN belum ditemukan. "
+        "Login dengan 'hf auth login' atau "
+        "set environment variable HF_TOKEN."
+    )
+
+
+# =========================
+# GEMINI CLIENT
+# =========================
 
 client = genai.Client(
     api_key=api_key
@@ -109,49 +149,81 @@ class ContextAnalysis(BaseModel):
 # LOAD INDOBERTWEET
 # =========================
 
-print("=== LOAD TOXICITY MODEL ===")
+print(
+    "=== LOAD TOXICITY MODEL ==="
+)
 
 toxicity_tokenizer = (
     AutoTokenizer.from_pretrained(
-        TOXICITY_MODEL
+        TOXICITY_MODEL,
+        token=HF_TOKEN
     )
 )
 
 toxicity_model = (
-    AutoModelForSequenceClassification.from_pretrained(
-        TOXICITY_MODEL
+    AutoModelForSequenceClassification
+    .from_pretrained(
+        TOXICITY_MODEL,
+        token=HF_TOKEN
     )
 )
 
 toxicity_model.eval()
 
-print("Toxicity model siap.")
+print(
+    "Toxicity model siap."
+)
 
 
-print("\n=== LOAD POLARIZATION MODEL ===")
+print(
+    "\n=== LOAD POLARIZATION MODEL ==="
+)
 
 polarization_tokenizer = (
     AutoTokenizer.from_pretrained(
-        POLARIZATION_MODEL
+        POLARIZATION_MODEL,
+        token=HF_TOKEN
     )
 )
 
 polarization_model = (
-    AutoModelForSequenceClassification.from_pretrained(
-        POLARIZATION_MODEL
+    AutoModelForSequenceClassification
+    .from_pretrained(
+        POLARIZATION_MODEL,
+        token=HF_TOKEN
     )
 )
 
 polarization_model.eval()
 
-print("Polarization model siap.")
+print(
+    "Polarization model siap."
+)
 
 
 # =========================
 # LOAD MAFINDO
 # =========================
 
-print("\n=== LOAD MAFINDO REFERENCE ===")
+print(
+    "\n=== LOAD MAFINDO REFERENCE ==="
+)
+
+
+EMBEDDINGS_FILE = hf_hub_download(
+    repo_id=MAFINDO_REPO,
+    filename=MAFINDO_EMBEDDINGS_FILE,
+    repo_type="dataset",
+    token=HF_TOKEN
+)
+
+METADATA_FILE = hf_hub_download(
+    repo_id=MAFINDO_REPO,
+    filename=MAFINDO_METADATA_FILE,
+    repo_type="dataset",
+    token=HF_TOKEN
+)
+
 
 mafindo_embeddings = np.load(
     EMBEDDINGS_FILE
@@ -161,9 +233,13 @@ mafindo_metadata = pd.read_csv(
     METADATA_FILE
 )
 
-embedding_model = SentenceTransformer(
-    EMBEDDING_MODEL
+
+embedding_model = (
+    SentenceTransformer(
+        EMBEDDING_MODEL
+    )
 )
+
 
 print(
     "MAfindo reference:",
@@ -178,7 +254,7 @@ print(
 
 
 # =========================
-# TEXT INPUT
+# TEXT VALIDATION
 # =========================
 
 def validate_text(text):
@@ -226,8 +302,9 @@ def predict_class(
     )[0]
 
     prediction = (
-        torch.argmax(probabilities)
-        .item()
+        torch.argmax(
+            probabilities
+        ).item()
     )
 
     return (
@@ -248,7 +325,9 @@ def calibrate_probability(
     )
 
     logit = np.log(
-        probability / (1 - probability)
+        probability / (
+            1 - probability
+        )
     )
 
     calibrated_logit = (
@@ -256,7 +335,11 @@ def calibrate_probability(
     )
 
     calibrated_probability = (
-        1 / (1 + np.exp(-calibrated_logit))
+        1 / (
+            1 + np.exp(
+                -calibrated_logit
+            )
+        )
     )
 
     return float(
@@ -270,19 +353,23 @@ def calibrate_probability(
 
 def search_mafindo(text):
 
-    query_embedding = embedding_model.encode(
-        [text],
-        normalize_embeddings=True
-    )[0]
+    query_embedding = (
+        embedding_model.encode(
+            [text],
+            normalize_embeddings=True
+        )[0]
+    )
 
     scores = (
         mafindo_embeddings
         @ query_embedding
     )
 
-    top_indices = np.argsort(
-        scores
-    )[::-1][:MAFINDO_TOP_K]
+    top_indices = (
+        np.argsort(
+            scores
+        )[::-1][:MAFINDO_TOP_K]
+    )
 
     results = []
 
@@ -295,16 +382,29 @@ def search_mafindo(text):
         if score < MAFINDO_MIN_SCORE:
             continue
 
-        row = mafindo_metadata.iloc[index]
+        row = (
+            mafindo_metadata.iloc[index]
+        )
 
-        results.append({
-            "title": str(row["title"]),
-            "content": str(row["content"]),
-            "is_hoax": int(row["is_hoax"]),
-            "score": score
-        })
+        results.append(
+            {
+                "title": str(
+                    row["title"]
+                ),
+                "content": str(
+                    row["content"]
+                ),
+                "is_hoax": int(
+                    row["is_hoax"]
+                ),
+                "score": score
+            }
+        )
 
-        if len(results) >= MAFINDO_MAX_CONTEXT:
+        if (
+            len(results)
+            >= MAFINDO_MAX_CONTEXT
+        ):
             break
 
     return results
@@ -320,37 +420,47 @@ def analyze_text(text):
         text
     )
 
+
     # =========================
     # TOXICITY
     # =========================
 
-    print("\n=== TOXICITY ===")
+    print(
+        "\n=== TOXICITY ==="
+    )
 
-    toxicity_prediction, toxicity_prob = (
-        predict_class(
-            text,
-            toxicity_tokenizer,
-            toxicity_model
-        )
+    (
+        toxicity_prediction,
+        toxicity_prob
+    ) = predict_class(
+        text,
+        toxicity_tokenizer,
+        toxicity_model
     )
 
     toxicity_score = float(
         toxicity_prob[1]
     )
 
+
     # -------------------------
     # TOXICITY CALIBRATION
     # -------------------------
 
-    toxicity_calibrated_score = calibrate_probability(
-        toxicity_score,
-        TOXICITY_TEMPERATURE
+    toxicity_calibrated_score = (
+        calibrate_probability(
+            toxicity_score,
+            TOXICITY_TEMPERATURE
+        )
     )
 
-    toxicity_calibrated_threshold = calibrate_probability(
-        TOXICITY_RAW_THRESHOLD,
-        TOXICITY_TEMPERATURE
+    toxicity_calibrated_threshold = (
+        calibrate_probability(
+            TOXICITY_RAW_THRESHOLD,
+            TOXICITY_TEMPERATURE
+        )
     )
+
 
     # -------------------------
     # TOXICITY UNCERTAINTY
@@ -370,45 +480,57 @@ def analyze_text(text):
         else "confident"
     )
 
+
     # -------------------------
     # TOXICITY LABEL
     # -------------------------
 
     toxicity_result = int(
-        toxicity_score >= TOXICITY_THRESHOLD
+        toxicity_score
+        >= TOXICITY_THRESHOLD
     )
+
 
     # =========================
     # POLARIZATION
     # =========================
 
-    print("\n=== POLARIZATION ===")
+    print(
+        "\n=== POLARIZATION ==="
+    )
 
-    polarization_prediction, polarization_prob = (
-        predict_class(
-            text,
-            polarization_tokenizer,
-            polarization_model
-        )
+    (
+        polarization_prediction,
+        polarization_prob
+    ) = predict_class(
+        text,
+        polarization_tokenizer,
+        polarization_model
     )
 
     polarization_score = float(
         polarization_prob[1]
     )
 
+
     # -------------------------
     # POLARIZATION CALIBRATION
     # -------------------------
 
-    polarization_calibrated_score = calibrate_probability(
-        polarization_score,
-        POLARIZATION_TEMPERATURE
+    polarization_calibrated_score = (
+        calibrate_probability(
+            polarization_score,
+            POLARIZATION_TEMPERATURE
+        )
     )
 
-    polarization_calibrated_threshold = calibrate_probability(
-        POLARIZATION_RAW_THRESHOLD,
-        POLARIZATION_TEMPERATURE
+    polarization_calibrated_threshold = (
+        calibrate_probability(
+            POLARIZATION_RAW_THRESHOLD,
+            POLARIZATION_TEMPERATURE
+        )
     )
+
 
     # -------------------------
     # POLARIZATION UNCERTAINTY
@@ -427,6 +549,7 @@ def analyze_text(text):
         if polarization_uncertain
         else "confident"
     )
+
 
     # =========================
     # DISPLAY ML RESULTS
@@ -458,6 +581,7 @@ def analyze_text(text):
         toxicity_result
     )
 
+
     print(
         "Polarization probability:",
         round(
@@ -484,21 +608,25 @@ def analyze_text(text):
         polarization_prediction
     )
 
+
     # =========================
     # MAFINDO RETRIEVAL
     # =========================
 
-    print("\n=== MAFINDO RETRIEVAL ===")
+    print(
+        "\n=== MAFINDO RETRIEVAL ==="
+    )
 
-    mafindo_results = search_mafindo(
-        text
+    mafindo_results = (
+        search_mafindo(text)
     )
 
     if not mafindo_results:
 
         print(
-            "Tidak ditemukan reference MAfindo "
-            "dengan similarity yang cukup."
+            "Tidak ditemukan reference "
+            "MAfindo dengan similarity "
+            "yang cukup."
         )
 
     else:
@@ -531,11 +659,13 @@ def analyze_text(text):
                 item["is_hoax"]
             )
 
+
     # =========================
     # BUILD REFERENCE CONTEXT
     # =========================
 
     reference_context = ""
+
 
     for i, item in enumerate(
         mafindo_results,
@@ -558,11 +688,15 @@ Isi:
 {item["content"]}
 """
 
+
     # =========================
     # GEMINI
     # =========================
 
-    print("\n=== GEMINI ANALYSIS ===")
+    print(
+        "\n=== GEMINI ANALYSIS ==="
+    )
+
 
     prompt = f"""
 Analisis teks berikut secara netral.
@@ -633,6 +767,7 @@ TUGAS:
 Gunakan bahasa Indonesia yang netral dan hati-hati.
 """
 
+
     response = client.models.generate_content(
 
         model=GEMINI_MODEL,
@@ -659,17 +794,35 @@ Gunakan bahasa Indonesia yang netral dan hati-hati.
         }
     )
 
-    result = ContextAnalysis.model_validate_json(
-        response.text
+
+    result = (
+        ContextAnalysis
+        .model_validate_json(
+            response.text
+        )
     )
+
 
     # =========================
     # FINAL RESULT
     # =========================
 
-    print("\n==============================")
-    print("CONTEXTLENS RESULT")
-    print("==============================")
+    print(
+        "\n=============================="
+    )
+
+    print(
+        "CONTEXTLENS RESULT"
+    )
+
+    print(
+        "=============================="
+    )
+
+
+    # =========================
+    # FINAL TOXICITY
+    # =========================
 
     print(
         "\n[Toxicity]"
@@ -701,6 +854,11 @@ Gunakan bahasa Indonesia yang netral dan hati-hati.
         toxicity_status
     )
 
+
+    # =========================
+    # FINAL POLARIZATION
+    # =========================
+
     print(
         "\n[Polarization]"
     )
@@ -731,9 +889,15 @@ Gunakan bahasa Indonesia yang netral dan hati-hati.
         polarization_status
     )
 
+
+    # =========================
+    # FINAL MAFINDO
+    # =========================
+
     print(
         "\n[MAfindo Reference]"
     )
+
 
     if mafindo_results:
 
@@ -743,15 +907,23 @@ Gunakan bahasa Indonesia yang netral dan hati-hati.
         ):
 
             print(
-                f"{i}. {item['title']} "
-                f"(similarity={item['score']:.4f})"
+                f"{i}. "
+                f"{item['title']} "
+                f"(similarity="
+                f"{item['score']:.4f})"
             )
 
     else:
 
         print(
-            "Tidak ada reference yang cukup relevan."
+            "Tidak ada reference yang "
+            "cukup relevan."
         )
+
+
+    # =========================
+    # FINAL GEMINI
+    # =========================
 
     print(
         "\n[Gemini]"
@@ -782,6 +954,7 @@ Gunakan bahasa Indonesia yang netral dan hati-hati.
         result.evidence_needed
     )
 
+
     # =========================
     # RETURN API RESULT
     # =========================
@@ -799,7 +972,9 @@ Gunakan bahasa Indonesia yang netral dan hati-hati.
         },
 
         "polarization": {
-            "label": polarization_prediction,
+            "label": (
+                polarization_prediction
+            ),
             "probability": polarization_score,
             "calibrated_probability": (
                 polarization_calibrated_score
@@ -814,6 +989,7 @@ Gunakan bahasa Indonesia yang netral dan hati-hati.
                 "is_hoax": item["is_hoax"],
                 "similarity": item["score"]
             }
+
             for item in mafindo_results
         ],
 
@@ -821,7 +997,11 @@ Gunakan bahasa Indonesia yang netral dan hati-hati.
             "summary": result.summary,
             "claim": result.claim,
             "content_type": result.content_type,
-            "reasoning_pattern": result.reasoning_pattern,
-            "evidence_needed": result.evidence_needed
+            "reasoning_pattern": (
+                result.reasoning_pattern
+            ),
+            "evidence_needed": (
+                result.evidence_needed
+            )
         }
     }
