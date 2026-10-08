@@ -17,6 +17,15 @@ from sentence_transformers import SentenceTransformer
 
 from google import genai
 
+from calibration_config import (
+    TOXICITY_TEMPERATURE,
+    POLARIZATION_TEMPERATURE,
+    TOXICITY_RAW_THRESHOLD,
+    POLARIZATION_RAW_THRESHOLD,
+    TOXICITY_UNCERTAIN_DELTA,
+    POLARIZATION_UNCERTAIN_DELTA
+)
+
 
 # =========================
 # CONFIG
@@ -45,7 +54,7 @@ METADATA_FILE = (
 
 GEMINI_MODEL = "gemini-3.5-flash-lite"
 
-TOXICITY_THRESHOLD = 0.10
+TOXICITY_THRESHOLD = TOXICITY_RAW_THRESHOLD
 
 MAFINDO_MIN_SCORE = 0.62
 
@@ -97,7 +106,7 @@ class ContextAnalysis(BaseModel):
 
 
 # =========================
-# LOAD INDoBERTWEET
+# LOAD INDOBERTWEET
 # =========================
 
 print("=== LOAD TOXICITY MODEL ===")
@@ -223,6 +232,34 @@ def predict_class(
     )
 
 
+def calibrate_probability(
+    probability,
+    temperature
+):
+
+    probability = np.clip(
+        float(probability),
+        1e-7,
+        1 - 1e-7
+    )
+
+    logit = np.log(
+        probability / (1 - probability)
+    )
+
+    calibrated_logit = (
+        logit / temperature
+    )
+
+    calibrated_probability = (
+        1 / (1 + np.exp(-calibrated_logit))
+    )
+
+    return float(
+        calibrated_probability
+    )
+
+
 # =========================
 # MAFINDO SEARCH
 # =========================
@@ -287,6 +324,45 @@ toxicity_score = float(
     toxicity_prob[1]
 )
 
+
+# -------------------------
+# TOXICITY CALIBRATION
+# -------------------------
+
+toxicity_calibrated_score = calibrate_probability(
+    toxicity_score,
+    TOXICITY_TEMPERATURE
+)
+
+toxicity_calibrated_threshold = calibrate_probability(
+    TOXICITY_RAW_THRESHOLD,
+    TOXICITY_TEMPERATURE
+)
+
+
+# -------------------------
+# TOXICITY UNCERTAINTY
+# -------------------------
+
+toxicity_uncertain = (
+    abs(
+        toxicity_calibrated_score
+        - toxicity_calibrated_threshold
+    )
+    < TOXICITY_UNCERTAIN_DELTA
+)
+
+toxicity_status = (
+    "uncertain"
+    if toxicity_uncertain
+    else "confident"
+)
+
+
+# -------------------------
+# TOXICITY LABEL
+# -------------------------
+
 toxicity_result = int(
     toxicity_score >= TOXICITY_THRESHOLD
 )
@@ -311,13 +387,63 @@ polarization_score = float(
 )
 
 
+# -------------------------
+# POLARIZATION CALIBRATION
+# -------------------------
+
+polarization_calibrated_score = calibrate_probability(
+    polarization_score,
+    POLARIZATION_TEMPERATURE
+)
+
+polarization_calibrated_threshold = calibrate_probability(
+    POLARIZATION_RAW_THRESHOLD,
+    POLARIZATION_TEMPERATURE
+)
+
+
+# -------------------------
+# POLARIZATION UNCERTAINTY
+# -------------------------
+
+polarization_uncertain = (
+    abs(
+        polarization_calibrated_score
+        - polarization_calibrated_threshold
+    )
+    < POLARIZATION_UNCERTAIN_DELTA
+)
+
+polarization_status = (
+    "uncertain"
+    if polarization_uncertain
+    else "confident"
+)
+
+
 # =========================
 # DISPLAY ML RESULTS
 # =========================
 
 print(
     "Toxicity probability:",
-    round(toxicity_score, 4)
+    round(
+        toxicity_score,
+        4
+    )
+)
+
+print(
+    "Toxicity calibrated probability:",
+    round(
+        toxicity_calibrated_score,
+        4
+    )
+)
+
+print(
+    "Toxicity status:",
+    toxicity_status
 )
 
 print(
@@ -325,12 +451,26 @@ print(
     toxicity_result
 )
 
+
 print(
     "Polarization probability:",
     round(
         polarization_score,
         4
     )
+)
+
+print(
+    "Polarization calibrated probability:",
+    round(
+        polarization_calibrated_score,
+        4
+    )
+)
+
+print(
+    "Polarization status:",
+    polarization_status
 )
 
 print(
@@ -427,25 +567,44 @@ Analisis teks berikut secara netral.
 TEKS:
 {text}
 
-Hasil model NLP sebelumnya:
+HASIL MODEL NLP SEBELUMNYA:
 
 Toxicity:
 - label: {toxicity_result}
-- probability: {toxicity_score:.4f}
+- probability mentah: {toxicity_score:.4f}
+- probability terkalibrasi: {toxicity_calibrated_score:.4f}
+- status: {toxicity_status}
 
 Polarization:
 - label: {polarization_prediction}
-- probability: {polarization_score:.4f}
+- probability mentah: {polarization_score:.4f}
+- probability terkalibrasi: {polarization_calibrated_score:.4f}
+- status: {polarization_status}
 
 Gunakan hasil model tersebut hanya sebagai sinyal tambahan,
 bukan sebagai kebenaran mutlak.
 
+PENTING TENTANG STATUS MODEL:
+- Jika status toxicity adalah "uncertain", jangan menyatakan
+  teks pasti toxic.
+- Jika status polarization adalah "uncertain", jangan menyatakan
+  teks pasti polarized.
+- Probability model bukan probability bahwa isi klaim tersebut
+  benar atau salah.
+- Jangan mengubah hasil model menjadi klaim faktual tentang
+  kebenaran suatu informasi.
+
 Berikut adalah reference dari dataset MAfindo yang ditemukan
 berdasarkan semantic similarity.
 
-{reference_context if reference_context else "Tidak ada reference MAfindo yang memenuhi threshold."}
+{
+    reference_context
+    if reference_context
+    else
+    "Tidak ada reference MAfindo yang memenuhi threshold."
+}
 
-PENTING:
+PENTING TENTANG REFERENCE:
 - Reference MAfindo hanya merupakan konteks pendukung.
 - Similarity tinggi tidak berarti teks pengguna pasti sama
   dengan reference.
@@ -457,7 +616,7 @@ PENTING:
   bahwa reference tersebut hanya relevan sebagai konteks.
 - Jangan mengarang fakta, sumber, atau bukti yang tidak ada.
 
-Tugas:
+TUGAS:
 1. Buat ringkasan singkat.
 2. Identifikasi klaim utama jika ada.
 3. Tentukan apakah isi utama berupa fact, opinion, prediction,
@@ -485,12 +644,16 @@ response = client.models.generate_content(
             "atau pandangan politik tertentu. "
             "Bedakan fakta dari opini dan klaim yang belum "
             "terverifikasi. "
-            "Gunakan bahasa yang hati-hati."
+            "Gunakan bahasa yang hati-hati. "
+            "Jangan menganggap prediksi model sebagai bukti "
+            "bahwa suatu klaim benar atau salah."
         ),
 
         "response_mime_type": "application/json",
 
-        "response_schema": ContextAnalysis
+        "response_schema": ContextAnalysis,
+
+        "temperature": 0
     }
 )
 
@@ -509,6 +672,10 @@ print("CONTEXTLENS RESULT")
 print("==============================")
 
 
+# =========================
+# FINAL TOXICITY
+# =========================
+
 print(
     "\n[Toxicity]"
 )
@@ -526,6 +693,23 @@ print(
     )
 )
 
+print(
+    "Calibrated probability:",
+    round(
+        toxicity_calibrated_score,
+        4
+    )
+)
+
+print(
+    "Status:",
+    toxicity_status
+)
+
+
+# =========================
+# FINAL POLARIZATION
+# =========================
 
 print(
     "\n[Polarization]"
@@ -544,6 +728,23 @@ print(
     )
 )
 
+print(
+    "Calibrated probability:",
+    round(
+        polarization_calibrated_score,
+        4
+    )
+)
+
+print(
+    "Status:",
+    polarization_status
+)
+
+
+# =========================
+# FINAL MAFINDO
+# =========================
 
 print(
     "\n[MAfindo Reference]"
@@ -567,6 +768,10 @@ else:
         "Tidak ada reference yang cukup relevan."
     )
 
+
+# =========================
+# FINAL GEMINI
+# =========================
 
 print(
     "\n[Gemini]"
