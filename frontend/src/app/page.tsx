@@ -33,7 +33,11 @@ type AnalysisResult = {
   gemini: {
     summary: string;
     claim: string;
-    content_type: "fact" | "opinion" | "prediction" | "mixed";
+    content_type:
+      | "fact"
+      | "opinion"
+      | "prediction"
+      | "mixed";
     reasoning_pattern: string;
     evidence_needed: string;
   };
@@ -45,7 +49,7 @@ function formatPercent(value: number) {
 }
 
 
-function statusText(
+function getStatusText(
   status: "confident" | "uncertain"
 ) {
   return status === "confident"
@@ -54,17 +58,27 @@ function statusText(
 }
 
 
+function getStatusClass(
+  status: "confident" | "uncertain"
+) {
+  return status === "confident"
+    ? "bg-emerald-50 text-emerald-700"
+    : "bg-amber-50 text-amber-700";
+}
+
+
 export default function Home() {
 
   const [text, setText] = useState("");
 
-  const [result, setResult] = useState<AnalysisResult | null>(
-    null
-  );
+  const [result, setResult] =
+    useState<AnalysisResult | null>(null);
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] =
+    useState(false);
 
-  const [error, setError] = useState("");
+  const [error, setError] =
+    useState("");
 
 
   async function handleSubmit(
@@ -77,7 +91,9 @@ export default function Home() {
     setResult(null);
 
     if (!text.trim()) {
-      setError("Masukkan teks terlebih dahulu.");
+      setError(
+        "Masukkan teks terlebih dahulu."
+      );
       return;
     }
 
@@ -115,8 +131,13 @@ export default function Home() {
     } catch (err) {
 
       if (err instanceof Error) {
-        setError(err.message);
+
+        setError(
+          err.message
+        );
+
       } else {
+
         setError(
           "Tidak dapat terhubung ke ContextLens API."
         );
@@ -130,11 +151,14 @@ export default function Home() {
 
 
   return (
+
     <main className="min-h-screen bg-slate-50 text-slate-900">
 
       <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8 lg:px-10">
 
-        {/* HEADER */}
+        {/* =========================
+            HEADER
+        ========================= */}
 
         <header className="mb-8">
 
@@ -161,7 +185,9 @@ export default function Home() {
         </header>
 
 
-        {/* INPUT */}
+        {/* =========================
+            INPUT
+        ========================= */}
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
 
@@ -172,8 +198,8 @@ export default function Home() {
             </h2>
 
             <p className="mt-1 text-sm leading-6 text-slate-500">
-              Masukkan komentar, postingan, atau informasi
-              yang ingin dianalisis.
+              Masukkan komentar, postingan, atau
+              informasi yang ingin dianalisis.
             </p>
 
           </div>
@@ -183,7 +209,9 @@ export default function Home() {
 
             <textarea
               value={text}
-              onChange={(event) => setText(event.target.value)}
+              onChange={(event) =>
+                setText(event.target.value)
+              }
               placeholder="Contoh: Menurut saya harga BBM sekarang terlalu mahal dan pemerintah harus menurunkannya..."
               className="min-h-40 w-full resize-y rounded-xl border border-slate-300 bg-white p-4 text-sm leading-6 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
             />
@@ -191,10 +219,12 @@ export default function Home() {
 
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 
-              <p className="text-xs text-slate-400">
-                ContextLens tidak otomatis menentukan bahwa
-                sebuah klaim benar atau salah.
+              <p className="text-xs leading-5 text-slate-400">
+                ContextLens membantu memahami konteks
+                informasi dan tidak otomatis menentukan
+                bahwa sebuah klaim benar atau salah.
               </p>
+
 
               <button
                 type="submit"
@@ -215,7 +245,7 @@ export default function Home() {
 
           {error && (
 
-            <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-700">
               {error}
             </div>
 
@@ -224,7 +254,9 @@ export default function Home() {
         </section>
 
 
-        {/* LOADING */}
+        {/* =========================
+            LOADING
+        ========================= */}
 
         {loading && (
 
@@ -240,9 +272,9 @@ export default function Home() {
                   Sedang menganalisis teks...
                 </p>
 
-                <p className="text-sm text-slate-500">
-                  Model NLP, semantic search, dan Gemini
-                  sedang memproses input.
+                <p className="text-sm leading-6 text-slate-500">
+                  Model NLP, semantic search, dan
+                  Gemini sedang memproses input.
                 </p>
 
               </div>
@@ -254,14 +286,18 @@ export default function Home() {
         )}
 
 
-        {/* RESULT */}
+        {/* =========================
+            RESULT
+        ========================= */}
 
         {result && !loading && (
 
           <section className="mt-6 space-y-6">
 
 
-            {/* ML */}
+            {/* =========================
+                ML RESULTS
+            ========================= */}
 
             <div>
 
@@ -271,7 +307,7 @@ export default function Home() {
                   Hasil analisis
                 </h2>
 
-                <p className="text-sm text-slate-500">
+                <p className="text-sm leading-6 text-slate-500">
                   Hasil model ditampilkan sebagai sinyal,
                   bukan keputusan mutlak.
                 </p>
@@ -296,7 +332,8 @@ export default function Home() {
 
                       <p className="mt-2 text-3xl font-bold">
                         {formatPercent(
-                          result.toxicity.calibrated_probability
+                          result.toxicity
+                            .calibrated_probability
                         )}
                       </p>
 
@@ -304,13 +341,11 @@ export default function Home() {
 
 
                     <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        result.toxicity.status === "confident"
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-amber-50 text-amber-700"
-                      }`}
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusClass(
+                        result.toxicity.status
+                      )}`}
                     >
-                      {statusText(
+                      {getStatusText(
                         result.toxicity.status
                       )}
                     </span>
@@ -320,7 +355,7 @@ export default function Home() {
 
                   <div className="mt-5 space-y-2 text-sm">
 
-                    <div className="flex justify-between">
+                    <div className="flex justify-between gap-4">
 
                       <span className="text-slate-500">
                         Label
@@ -333,7 +368,7 @@ export default function Home() {
                     </div>
 
 
-                    <div className="flex justify-between">
+                    <div className="flex justify-between gap-4">
 
                       <span className="text-slate-500">
                         Probability mentah
@@ -348,7 +383,7 @@ export default function Home() {
                     </div>
 
 
-                    <div className="flex justify-between">
+                    <div className="flex justify-between gap-4">
 
                       <span className="text-slate-500">
                         Probability terkalibrasi
@@ -356,7 +391,8 @@ export default function Home() {
 
                       <span className="font-medium">
                         {formatPercent(
-                          result.toxicity.calibrated_probability
+                          result.toxicity
+                            .calibrated_probability
                         )}
                       </span>
 
@@ -381,7 +417,8 @@ export default function Home() {
 
                       <p className="mt-2 text-3xl font-bold">
                         {formatPercent(
-                          result.polarization.calibrated_probability
+                          result.polarization
+                            .calibrated_probability
                         )}
                       </p>
 
@@ -389,13 +426,11 @@ export default function Home() {
 
 
                     <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        result.polarization.status === "confident"
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-amber-50 text-amber-700"
-                      }`}
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusClass(
+                        result.polarization.status
+                      )}`}
                     >
-                      {statusText(
+                      {getStatusText(
                         result.polarization.status
                       )}
                     </span>
@@ -405,7 +440,7 @@ export default function Home() {
 
                   <div className="mt-5 space-y-2 text-sm">
 
-                    <div className="flex justify-between">
+                    <div className="flex justify-between gap-4">
 
                       <span className="text-slate-500">
                         Label
@@ -418,7 +453,7 @@ export default function Home() {
                     </div>
 
 
-                    <div className="flex justify-between">
+                    <div className="flex justify-between gap-4">
 
                       <span className="text-slate-500">
                         Probability mentah
@@ -433,7 +468,7 @@ export default function Home() {
                     </div>
 
 
-                    <div className="flex justify-between">
+                    <div className="flex justify-between gap-4">
 
                       <span className="text-slate-500">
                         Probability terkalibrasi
@@ -441,7 +476,8 @@ export default function Home() {
 
                       <span className="font-medium">
                         {formatPercent(
-                          result.polarization.calibrated_probability
+                          result.polarization
+                            .calibrated_probability
                         )}
                       </span>
 
@@ -456,7 +492,9 @@ export default function Home() {
             </div>
 
 
-            {/* GEMINI */}
+            {/* =========================
+                GEMINI ANALYSIS
+            ========================= */}
 
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
 
@@ -466,7 +504,7 @@ export default function Home() {
                   Context Analysis
                 </h2>
 
-                <p className="text-sm text-slate-500">
+                <p className="text-sm leading-6 text-slate-500">
                   Analisis bahasa dan konteks dari Gemini.
                 </p>
 
@@ -545,7 +583,9 @@ export default function Home() {
             </div>
 
 
-            {/* MAFINDO */}
+            {/* =========================
+                MAFINDO REFERENCES
+            ========================= */}
 
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
 
@@ -557,8 +597,8 @@ export default function Home() {
 
                 <p className="mt-1 text-sm leading-6 text-slate-500">
                   Reference ditemukan berdasarkan semantic
-                  similarity. Kemiripan bukan bukti bahwa
-                  klaim pengguna benar atau salah.
+                  similarity. Kemiripan tidak berarti klaim
+                  Anda sama dengan reference tersebut.
                 </p>
 
               </div>
@@ -566,8 +606,9 @@ export default function Home() {
 
               {result.mafindo_references.length === 0 ? (
 
-                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-500">
-                  Tidak ditemukan reference yang cukup relevan.
+                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm leading-6 text-slate-500">
+                  Tidak ditemukan reference yang cukup
+                  relevan.
                 </div>
 
               ) : (
@@ -584,7 +625,7 @@ export default function Home() {
 
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 
-                          <h3 className="font-semibold text-slate-900">
+                          <h3 className="font-semibold leading-6 text-slate-900">
                             {reference.title}
                           </h3>
 
@@ -603,9 +644,19 @@ export default function Home() {
                         </p>
 
 
-                        <p className="mt-3 text-xs text-slate-400">
-                          Kategori dataset:{" "}
-                          {reference.is_hoax}
+                        <p className="mt-3 text-xs leading-5 text-slate-400">
+                          Dataset MAfindo:{" "}
+                          {reference.is_hoax === 1
+                            ? "ditandai sebagai hoaks"
+                            : "tidak ditandai sebagai hoaks"}
+                        </p>
+
+
+                        <p className="mt-2 text-xs leading-5 text-slate-400">
+                          Label ini adalah kategori pada
+                          data referensi MAfindo, bukan
+                          keputusan bahwa klaim yang Anda
+                          masukkan benar atau salah.
                         </p>
 
                       </article>
@@ -620,7 +671,9 @@ export default function Home() {
             </div>
 
 
-            {/* DISCLAIMER */}
+            {/* =========================
+                DISCLAIMER
+            ========================= */}
 
             <div className="rounded-2xl border border-blue-100 bg-blue-50 p-5 text-sm leading-6 text-blue-900">
 
@@ -629,13 +682,15 @@ export default function Home() {
               </p>
 
               <p className="mt-1">
-                Hasil model, similarity reference, dan analisis
-                AI tidak otomatis membuktikan kebenaran atau
-                kesalahan sebuah klaim. Gunakan sumber resmi
-                dan bukti yang relevan untuk verifikasi akhir.
+                Hasil model, similarity reference, dan
+                analisis AI tidak otomatis membuktikan
+                kebenaran atau kesalahan sebuah klaim.
+                Gunakan sumber resmi dan bukti yang relevan
+                untuk verifikasi akhir.
               </p>
 
             </div>
+
 
           </section>
 
