@@ -67,6 +67,22 @@ function getStatusClass(
 }
 
 
+function getLabelText(
+  type: "toxicity" | "polarization",
+  label: number
+) {
+  if (type === "toxicity") {
+    return label === 1
+      ? "Terindikasi toxic"
+      : "Tidak terindikasi toxic";
+  }
+
+  return label === 1
+    ? "Terindikasi polarized"
+    : "Tidak terindikasi polarized";
+}
+
+
 export default function Home() {
 
   const [text, setText] = useState("");
@@ -361,8 +377,11 @@ export default function Home() {
                         Label
                       </span>
 
-                      <span className="font-medium">
-                        {result.toxicity.label}
+                      <span className="text-right font-medium">
+                        {getLabelText(
+                          "toxicity",
+                          result.toxicity.label
+                        )}
                       </span>
 
                     </div>
@@ -446,8 +465,11 @@ export default function Home() {
                         Label
                       </span>
 
-                      <span className="font-medium">
-                        {result.polarization.label}
+                      <span className="text-right font-medium">
+                        {getLabelText(
+                          "polarization",
+                          result.polarization.label
+                        )}
                       </span>
 
                     </div>
