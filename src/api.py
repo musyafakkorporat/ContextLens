@@ -1,8 +1,17 @@
+import logging
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from contextlens_pipeline import analyze_text
+
+
+# =========================
+# LOGGING
+# =========================
+
+logger = logging.getLogger(__name__)
 
 
 # =========================
@@ -11,20 +20,32 @@ from contextlens_pipeline import analyze_text
 
 app = FastAPI(
     title="ContextLens API",
-    description="API untuk menganalisis konteks dan kualitas informasi.",
-    version="1.0.0"
+    description=(
+        "API untuk menganalisis konteks "
+        "dan kualitas informasi."
+    ),
+    version="1.1.0",
 )
+
+
+# =========================
+# CORS
+# =========================
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
     allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"]
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
 )
 
+
 # =========================
-# REQUEST MODEL
+# REQUEST VALIDATION
 # =========================
 
 class AnalyzeRequest(BaseModel):
@@ -32,12 +53,28 @@ class AnalyzeRequest(BaseModel):
     text: str = Field(
         ...,
         min_length=1,
-        description="Teks yang ingin dianalisis."
+        max_length=5000,
+        description=(
+            "Teks yang ingin dianalisis. "
+            "Panjang maksimum 5000 karakter."
+        ),
     )
+
+    @field_validator("text")
+    @classmethod
+    def validate_text(cls, value: str) -> str:
+        value = value.strip()
+
+        if not value:
+            raise ValueError(
+                "Teks tidak boleh kosong."
+            )
+
+        return value
 
 
 # =========================
-# HEALTH CHECK
+# ROOT ENDPOINT
 # =========================
 
 @app.get("/")
@@ -47,6 +84,10 @@ def root():
         "message": "ContextLens API berjalan."
     }
 
+
+# =========================
+# HEALTH CHECK
+# =========================
 
 @app.get("/health")
 def health():
@@ -64,23 +105,17 @@ def health():
 def analyze(request: AnalyzeRequest):
 
     try:
+        return analyze_text(request.text)
 
-        result = analyze_text(
-            request.text
+    except Exception:
+        logger.exception(
+            "Terjadi kesalahan saat menganalisis teks."
         )
-
-        return result
-
-    except ValueError as error:
-
-        raise HTTPException(
-            status_code=400,
-            detail=str(error)
-        )
-
-    except Exception as error:
 
         raise HTTPException(
             status_code=500,
-            detail=str(error)
-        )
+            detail=(
+                "Analisis gagal diproses. "
+                "Periksa log backend."
+            ),
+        ) from None
