@@ -55,8 +55,8 @@ function getStatusText(
   status: "confident" | "uncertain"
 ) {
   return status === "confident"
-    ? "Cukup yakin"
-    : "Perlu diperhatikan";
+    ? "Jauh dari batas keputusan"
+    : "Dekat batas keputusan";
 }
 
 
