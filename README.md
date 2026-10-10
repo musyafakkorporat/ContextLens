@@ -1,18 +1,20 @@
 # ContextLens
 
-ContextLens adalah aplikasi berbasis web untuk membantu menganalisis konteks dan kualitas informasi dari teks berbahasa Indonesia. Aplikasi ini menggabungkan klasifikasi teks, pengukuran ketidakpastian model, pencarian referensi, dan analisis bahasa menggunakan AI.
+ContextLens adalah prototipe analisis teks berbahasa Indonesia yang menggabungkan klasifikasi teks, kalibrasi probabilitas, analisis ketidakpastian, pencarian referensi MAFINDO, dan analisis konteks menggunakan Google Gemini.
 
-ContextLens merupakan alat bantu analisis, bukan penentu kebenaran otomatis. Hasil model, kemiripan referensi, dan interpretasi AI perlu diperiksa bersama bukti atau sumber yang relevan.
+Aplikasi memiliki **frontend web dan backend API yang dijalankan secara lokal**. Frontend dibuka melalui browser di `http://localhost:3000`, sedangkan backend berjalan di `http://127.0.0.1:8000`. Proyek ini tidak memerlukan deployment publik.
+
+ContextLens merupakan alat bantu analisis, bukan sistem yang otomatis menentukan apakah suatu klaim benar atau salah. Hasil model, kemiripan referensi, dan interpretasi Gemini tetap perlu diperiksa dengan bukti serta sumber yang relevan.
 
 ## Fitur Utama
 
 - **Toxicity classification**: memperkirakan indikasi konten toxic menggunakan model IndoBERTweet.
 - **Polarization classification**: memperkirakan indikasi konten polarized.
-- **Probability calibration**: menampilkan probability model setelah kalibrasi.
-- **Uncertainty analysis**: memberi penanda saat hasil model perlu diperhatikan karena ketidakpastian.
+- **Probability calibration**: menampilkan probabilitas model setelah kalibrasi.
+- **Uncertainty analysis**: menandai hasil model yang perlu diperhatikan karena ketidakpastian.
 - **MAFINDO reference retrieval**: mencari referensi yang memiliki kemiripan semantik dengan teks masukan.
-- **Context analysis**: menggunakan Gemini untuk membuat ringkasan, mengidentifikasi klaim utama, menguraikan pola penalaran, dan menyebutkan bukti yang diperlukan untuk memeriksa klaim.
-- **Web interface**: menyediakan antarmuka untuk memasukkan teks dan membaca hasil analisis.
+- **Gemini context analysis**: membuat ringkasan, mengidentifikasi klaim utama, mengategorikan isi teks, menjelaskan kemungkinan pola penalaran, dan menyebutkan bukti atau konteks yang dibutuhkan.
+- **Local web interface**: memasukkan teks melalui browser dan melihat hasil analisis dari backend.
 
 ## Teknologi
 
@@ -21,121 +23,148 @@ ContextLens merupakan alat bantu analisis, bukan penentu kebenaran otomatis. Has
 | Frontend | Next.js, React, TypeScript, Tailwind CSS |
 | Backend API | FastAPI, Uvicorn |
 | Klasifikasi teks | IndoBERTweet, Transformers, PyTorch |
-| Semantic search | Sentence-Transformers |
+| Semantic search | Sentence-Transformers, NumPy |
+| Pengolahan data | Pandas |
 | Analisis konteks | Google Gemini API |
-| Referensi | Dataset MAFINDO |
-| Penyimpanan model dan referensi | Hugging Face Hub |
+| Model dan data referensi | Hugging Face Hub |
 
-## Arsitektur
+## Alur Analisis
 
 ```text
-Pengguna
-   |
-   v
-Next.js frontend
-   |
-   v
-FastAPI: POST /analyze
-   |
-   +--> Toxicity classification
-   |
-   +--> Polarization classification
-   |
-   +--> Calibration dan uncertainty
-   |
-   +--> MAFINDO semantic search
-   |
-   +--> Gemini context analysis
-   |
-   v
-Response JSON
-   |
-   v
+Pengguna memasukkan teks
+        |
+        v
+Frontend Next.js (localhost:3000)
+        |
+        v
+FastAPI /analyze (localhost:8000)
+        |
+        +--> Toxicity classification
+        |
+        +--> Polarization classification
+        |
+        +--> Calibration dan uncertainty analysis
+        |
+        +--> Pencarian referensi MAFINDO
+        |
+        +--> Analisis konteks dengan Gemini API
+        |
+        v
+Hasil analisis dalam JSON
+        |
+        v
 Hasil ditampilkan pada frontend
 ```
 
+## Struktur Proyek
+
+```text
+ContextLens/
+├── src/
+│   ├── api.py
+│   ├── contextlens_pipeline.py
+│   └── calibration_config.py
+├── research/
+│   └── scripts/
+│       ├── analyze_selective_prediction.py
+│       ├── analyze_uncertainty.py
+│       ├── calibrate_models.py
+│       ├── evaluate_calibration_test.py
+│       ├── evaluate_pipeline.py
+│       ├── train_toxicity_5000.py
+│       └── train_polarized_5000.py
+├── frontend/
+│   ├── src/
+│   │   └── app/
+│   │       ├── page.tsx
+│   │       ├── layout.tsx
+│   │       └── globals.css
+│   ├── package.json
+│   ├── .env.example
+│   └── .env.local          # lokal, tidak di-commit
+├── requirements.txt
+├── .env.example
+└── README.md
+```
+
+Folder `src/` berisi kode utama yang dibutuhkan untuk menjalankan backend. Folder `research/scripts/` menyimpan script penelitian, persiapan data, pelatihan, eksperimen, dan evaluasi; script di folder tersebut tidak perlu dijalankan saat menggunakan aplikasi utama.
+
+Model dan data referensi berukuran besar tidak disimpan langsung di GitHub. Aset tersebut berada di Hugging Face Hub.
+
 ## Repository Model dan Referensi
 
-Model dan data referensi tidak disimpan langsung di repository GitHub karena ukurannya besar. Backend mengambil aset dari repository Hugging Face berikut:
+Backend menggunakan tiga repository Hugging Face berikut:
 
-- Toxicity model: `muss05/contextlens-toxicity`
-- Polarization model: `muss05/contextlens-polarization`
-- MAFINDO reference dataset: `muss05/contextlens-mafindo`
+- Toxicity model: [`muss05/contextlens-toxicity`](https://huggingface.co/muss05/contextlens-toxicity)
+- Polarization model: [`muss05/contextlens-polarization`](https://huggingface.co/muss05/contextlens-polarization)
+- Referensi MAFINDO: [`muss05/contextlens-mafindo`](https://huggingface.co/datasets/muss05/contextlens-mafindo)
 
-Ketiga repository tersebut bersifat **private**. Akun Hugging Face yang menjalankan backend harus memiliki akses baca ke repository tersebut.
+Repository tersebut bersifat **private**. Pengguna perlu mempunyai izin baca untuk mengaksesnya. Backend juga memerlukan koneksi internet untuk mengunduh aset yang belum ada di cache dan untuk memanggil Gemini API.
 
 ## Persyaratan
 
-Siapkan:
+Siapkan perangkat dengan:
 
-- Python yang sesuai dengan dependency pada `requirements.txt`.
+- Python dan pip.
 - Node.js dan npm.
 - Git.
 - Google Gemini API key yang valid.
-- Hugging Face read token yang memiliki akses ke repository private ContextLens.
-- Koneksi internet untuk mengunduh aset Hugging Face dan menggunakan Gemini API.
+- Akun Hugging Face dengan akses baca ke repository private ContextLens.
+- Koneksi internet.
 
-## Instalasi Backend
+## Menjalankan Backend secara Lokal
 
-Clone repository:
+### 1. Clone repository
 
 ```powershell
 git clone https://github.com/musyafakkorporat/ContextLens.git
 cd ContextLens
 ```
 
-Buat dan aktifkan virtual environment pada Windows PowerShell:
+### 2. Buat virtual environment
 
 ```powershell
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-Pasang dependency:
+### 3. Pasang dependency
 
 ```powershell
 python -m pip install -r requirements.txt
 ```
 
-Buat file `.env` berdasarkan template jika file tersebut belum tersedia:
+### 4. Siapkan kredensial
 
-```powershell
-Copy-Item .env.example .env
-```
-
-Isi `.env` dengan kredensial milik sendiri:
+Buat file `.env` di root proyek berdasarkan `.env.example`, lalu isi dengan kredensial sendiri:
 
 ```env
 GEMINI_API_KEY=ISI_GEMINI_API_KEY
 HF_TOKEN=ISI_HUGGING_FACE_READ_TOKEN
 ```
 
-- `GEMINI_API_KEY` adalah API key dari Google AI Studio.
-- `HF_TOKEN` adalah Hugging Face access token dengan izin baca ke repository private ContextLens.
+`GEMINI_API_KEY` digunakan untuk mengakses Gemini API. `HF_TOKEN` harus memiliki izin baca ke repository private model dan referensi ContextLens. Untuk penggunaan lokal, token Hugging Face yang sudah disimpan melalui `hf auth login` juga dapat digunakan oleh Hugging Face Hub jika `HF_TOKEN` tidak disetel di environment.
 
-Jangan menaruh nilai asli pada `.env.example`, jangan mengunggah `.env` ke GitHub, dan jangan membagikan token melalui chat atau tangkapan layar.
+**Jangan commit atau mengunggah `.env` ke GitHub.** File `.env.example` hanya template kosong dan aman untuk dibagikan.
 
-## Menjalankan Backend
+### 5. Jalankan backend
 
-Dari root project, dengan virtual environment aktif, jalankan:
+Dari root proyek, jalankan:
 
 ```powershell
 uvicorn --app-dir src api:app
 ```
 
-Backend berjalan di `http://127.0.0.1:8000` secara default.
+Backend berjalan pada `http://127.0.0.1:8000` secara default. Dokumentasi interaktif API tersedia di `http://127.0.0.1:8000/docs`.
 
-Dokumentasi interaktif API tersedia di `http://127.0.0.1:8000/docs`.
-
-Endpoint yang tersedia:
+Endpoint yang digunakan:
 
 | Method | Endpoint | Fungsi |
 |---|---|---|
-| `GET` | `/` | Menampilkan pesan status API |
-| `GET` | `/health` | Memeriksa kesehatan API |
+| `GET` | `/health` | Memeriksa status backend |
 | `POST` | `/analyze` | Menganalisis teks |
 
-Contoh request untuk `POST /analyze`:
+Contoh body request untuk `/analyze`:
 
 ```json
 {
@@ -143,11 +172,11 @@ Contoh request untuk `POST /analyze`:
 }
 ```
 
-Response JSON berisi hasil toxicity, polarization, referensi MAFINDO jika tersedia, dan analisis konteks dari Gemini.
+Response mencakup hasil toxicity, polarization, referensi MAFINDO jika tersedia, dan analisis konteks dari Gemini.
 
-## Menjalankan Frontend
+## Menjalankan Frontend secara Lokal
 
-Buka terminal PowerShell kedua, lalu pindah ke folder frontend:
+Buka **PowerShell kedua** dan pindah ke folder frontend:
 
 ```powershell
 cd frontend
@@ -160,33 +189,32 @@ Buat file `frontend/.env.local` jika belum tersedia, dengan isi:
 NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
 ```
 
-Jalankan frontend:
+Kemudian jalankan:
 
 ```powershell
 npm run dev
 ```
 
-Buka `http://localhost:3000` di browser. Pastikan backend tetap berjalan di terminal pertama saat frontend digunakan.
+Buka `http://localhost:3000` di browser. Pastikan backend tetap berjalan di terminal pertama selama frontend digunakan.
 
-Untuk memeriksa production build frontend, jalankan dari folder `frontend`:
+Untuk memeriksa build produksi frontend, jalankan dari folder `frontend`:
 
 ```powershell
 npm run build
 ```
 
-## Catatan Interpretasi dan Privasi
+## Catatan Interpretasi Hasil
 
-- Probability model bukan probabilitas bahwa klaim pengguna benar atau salah.
-- Status ketidakpastian bukan jaminan bahwa prediksi model benar atau salah.
-- Semantic similarity hanya menunjukkan kemiripan teks dengan referensi yang ditemukan.
-- Label pada data MAFINDO tidak otomatis menentukan kebenaran klaim baru.
-- Analisis Gemini adalah bantuan interpretasi dan tetap perlu dibandingkan dengan bukti yang relevan.
-- Teks yang dianalisis dikirim ke Google Gemini API untuk analisis konteks. Hindari memasukkan data pribadi atau informasi sensitif.
+- Probability model menunjukkan keluaran model, bukan probabilitas bahwa suatu klaim benar atau salah.
+- Status uncertainty bukan jaminan bahwa prediksi model benar.
+- Semantic similarity menunjukkan kemiripan dengan referensi, bukan bukti bahwa teks pengguna memiliki fakta atau konteks yang sama.
+- Label pada data referensi MAFINDO tidak otomatis menentukan kebenaran klaim baru.
+- Analisis Gemini merupakan bantuan interpretasi dan tetap memerlukan pemeriksaan sumber serta bukti yang relevan.
 
 ## Status Proyek
 
-ContextLens memiliki frontend Next.js dan backend FastAPI yang terhubung. Endpoint analisis telah diuji secara lokal dan frontend telah berhasil melewati production build. Versi ini ditujukan untuk penggunaan lokal; deployment publik belum dikonfigurasi.
+ContextLens dikembangkan sebagai proyek yang dijalankan secara lokal. Backend FastAPI dan endpoint `/analyze` telah diuji, serta frontend Next.js telah berhasil melewati production build. Deployment publik tidak dikonfigurasi dalam versi ini.
 
 ## Lisensi
 
-Lisensi proyek ini belum ditentukan. Penggunaan model, dataset, serta layanan pihak ketiga tetap mengikuti lisensi dan ketentuan masing-masing sumber.
+Lisensi proyek belum ditentukan. Penggunaan model, dataset, dan layanan pihak ketiga tetap mengikuti lisensi serta ketentuan masing-masing sumber.
