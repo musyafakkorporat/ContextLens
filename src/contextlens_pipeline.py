@@ -30,6 +30,7 @@ from calibration_config import (
     TOXICITY_UNCERTAIN_DELTA,
     POLARIZATION_UNCERTAIN_DELTA
 )
+from text_quality import is_repetitive_text
 
 
 # =========================
@@ -354,39 +355,8 @@ def calibrate_probability(
 def search_mafindo(text):
 
     # Lewati pencarian untuk teks yang sangat repetitif.
-    from collections import Counter
-
-    normalized_chars = "".join(
-        char.casefold()
-        for char in text
-        if char.isalnum()
-    )
-
-    if len(normalized_chars) >= 20:
-        char_counts = Counter(normalized_chars)
-        dominant_char_ratio = (
-            char_counts.most_common(1)[0][1]
-            / len(normalized_chars)
-        )
-
-        if dominant_char_ratio >= 0.80:
-            return []
-
-    tokens = [
-        token.casefold()
-        for token in text.split()
-        if any(char.isalnum() for char in token)
-    ]
-
-    if len(tokens) >= 10:
-        token_counts = Counter(tokens)
-        dominant_token_ratio = (
-            token_counts.most_common(1)[0][1]
-            / len(tokens)
-        )
-
-        if dominant_token_ratio >= 0.80:
-            return []
+    if is_repetitive_text(text):
+        return []
 
     query_embedding = (
         embedding_model.encode(
