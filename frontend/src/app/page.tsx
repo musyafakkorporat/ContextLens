@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { validateAnalysisText, getApiErrorMessage } from "@/lib/analysisValidation";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -12,6 +13,8 @@ type Reference = {
   is_hoax: number;
   similarity: number;
 };
+
+
 
 type AnalysisResult = {
   text: string;
@@ -116,20 +119,11 @@ export default function Home() {
     setError("");
     setResult(null);
 
-    if (!text.trim()) {
-      setError(
-        "Masukkan teks terlebih dahulu."
-      );
+    const validationError = validateAnalysisText(text);
+    if (validationError) {
+      setError(validationError);
       return;
     }
-
-    if (Array.from(text).length > 5000) {
-      setError(
-        "Teks maksimal 5.000 karakter. Kurangi panjang teks lalu coba lagi."
-      );
-      return;
-    }
-
     setLoading(true);
 
     try {
@@ -152,44 +146,8 @@ export default function Home() {
       const data = await response.json();
 
       if (!response.ok) {
-        let errorMessage =
-          "Terjadi kesalahan saat menganalisis teks.";
-
-        if (typeof data.detail === "string") {
-          errorMessage = data.detail;
-        } else if (Array.isArray(data.detail)) {
-          const details = data.detail as Array<{
-            type?: string;
-            msg?: string;
-            loc?: Array<string | number>;
-          }>;
-
-          if (
-            details.some(
-              (item) =>
-                item.type === "string_too_long" &&
-                item.loc?.includes("text")
-            )
-          ) {
-            errorMessage =
-              "Teks maksimal 5.000 karakter. Kurangi panjang teks lalu coba lagi.";
-          } else {
-            const firstMessage = details.find(
-              (item) => typeof item.msg === "string"
-            )?.msg;
-
-            if (firstMessage) {
-              errorMessage = firstMessage.replace(
-                /^Value error,\s*/i,
-                ""
-              );
-            }
-          }
-        }
-
-        throw new Error(errorMessage);
+        throw new Error(getApiErrorMessage(data));
       }
-
       setResult(data);
 
     } catch (err) {
