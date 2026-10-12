@@ -1,37 +1,25 @@
 import os
+from typing import Literal
 
 import numpy as np
 import pandas as pd
 import torch
-
 from dotenv import load_dotenv
-from pydantic import BaseModel
-from typing import Literal
-
-from transformers import (
-    AutoTokenizer,
-    AutoModelForSequenceClassification
-)
-
-from sentence_transformers import SentenceTransformer
-
 from google import genai
-
-from huggingface_hub import (
-    get_token,
-    hf_hub_download
-)
+from huggingface_hub import get_token, hf_hub_download
+from pydantic import BaseModel
+from sentence_transformers import SentenceTransformer
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 from calibration_config import (
-    TOXICITY_TEMPERATURE,
-    POLARIZATION_TEMPERATURE,
-    TOXICITY_RAW_THRESHOLD,
     POLARIZATION_RAW_THRESHOLD,
+    POLARIZATION_TEMPERATURE,
+    POLARIZATION_UNCERTAIN_DELTA,
+    TOXICITY_RAW_THRESHOLD,
+    TOXICITY_TEMPERATURE,
     TOXICITY_UNCERTAIN_DELTA,
-    POLARIZATION_UNCERTAIN_DELTA
 )
 from text_quality import is_repetitive_text
-
 
 # =========================
 # CONFIG
@@ -435,7 +423,7 @@ def analyze_text(text):
     )
 
     (
-        toxicity_prediction,
+        _toxicity_prediction,
         toxicity_prob
     ) = predict_class(
         text,

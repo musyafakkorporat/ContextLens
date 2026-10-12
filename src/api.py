@@ -6,7 +6,6 @@ from pydantic import BaseModel, Field, field_validator
 
 from contextlens_pipeline import analyze_text
 
-
 # =========================
 # LOGGING
 # =========================
