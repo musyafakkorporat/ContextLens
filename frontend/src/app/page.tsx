@@ -123,6 +123,13 @@ export default function Home() {
       return;
     }
 
+    if (Array.from(text).length > 5000) {
+      setError(
+        "Teks maksimal 5.000 karakter. Kurangi panjang teks lalu coba lagi."
+      );
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -145,11 +152,42 @@ export default function Home() {
       const data = await response.json();
 
       if (!response.ok) {
+        let errorMessage =
+          "Terjadi kesalahan saat menganalisis teks.";
 
-        throw new Error(
-          data.detail ||
-          "Terjadi kesalahan saat menganalisis teks."
-        );
+        if (typeof data.detail === "string") {
+          errorMessage = data.detail;
+        } else if (Array.isArray(data.detail)) {
+          const details = data.detail as Array<{
+            type?: string;
+            msg?: string;
+            loc?: Array<string | number>;
+          }>;
+
+          if (
+            details.some(
+              (item) =>
+                item.type === "string_too_long" &&
+                item.loc?.includes("text")
+            )
+          ) {
+            errorMessage =
+              "Teks maksimal 5.000 karakter. Kurangi panjang teks lalu coba lagi.";
+          } else {
+            const firstMessage = details.find(
+              (item) => typeof item.msg === "string"
+            )?.msg;
+
+            if (firstMessage) {
+              errorMessage = firstMessage.replace(
+                /^Value error,\s*/i,
+                ""
+              );
+            }
+          }
+        }
+
+        throw new Error(errorMessage);
       }
 
       setResult(data);
