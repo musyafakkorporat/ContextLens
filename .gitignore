@@ -12,3 +12,6 @@ results/
 .ipynb_checkpoints/
 data/reference/*
 data/test_cases_original.csv
+
+# Generated local dataset splits
+data/processed_leakage_free_v2/

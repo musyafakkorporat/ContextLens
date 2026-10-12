@@ -20,14 +20,14 @@ type AnalysisResult = {
     label: number;
     probability: number;
     calibrated_probability: number;
-    status: "confident" | "uncertain";
+    status: "confident" | "uncertain" | "screening_disabled";
   };
 
   polarization: {
     label: number;
     probability: number;
     calibrated_probability: number;
-    status: "confident" | "uncertain";
+    status: "confident" | "uncertain" | "screening_disabled";
   };
 
   mafindo_references: Reference[];
@@ -52,8 +52,12 @@ function formatPercent(value: number) {
 
 
 function getStatusText(
-  status: "confident" | "uncertain"
+  status: "confident" | "uncertain" | "screening_disabled"
 ) {
+  if (status === "screening_disabled") {
+    return "Penyaringan ketidakpastian nonaktif";
+  }
+
   return status === "confident"
     ? "Jauh dari batas keputusan"
     : "Dekat batas keputusan";
@@ -61,8 +65,12 @@ function getStatusText(
 
 
 function getStatusClass(
-  status: "confident" | "uncertain"
+  status: "confident" | "uncertain" | "screening_disabled"
 ) {
+  if (status === "screening_disabled") {
+    return "bg-slate-100 text-slate-600";
+  }
+
   return status === "confident"
     ? "bg-emerald-50 text-emerald-700"
     : "bg-amber-50 text-amber-700";

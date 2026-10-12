@@ -37,11 +37,11 @@ from calibration_config import (
 # =========================
 
 TOXICITY_MODEL = (
-    "muss05/contextlens-toxicity"
+    "muss05/contextlens-toxicity-leakage-free-v2"
 )
 
 POLARIZATION_MODEL = (
-    "muss05/contextlens-polarization"
+    "muss05/contextlens-polarization-leakage-free-v2"
 )
 
 EMBEDDING_MODEL = (
@@ -466,19 +466,23 @@ def analyze_text(text):
     # TOXICITY UNCERTAINTY
     # -------------------------
 
-    toxicity_uncertain = (
-        abs(
-            toxicity_calibrated_score
-            - toxicity_calibrated_threshold
+    if TOXICITY_UNCERTAIN_DELTA <= 0:
+        toxicity_uncertain = False
+        toxicity_status = "screening_disabled"
+    else:
+        toxicity_uncertain = (
+            abs(
+                toxicity_calibrated_score
+                - toxicity_calibrated_threshold
+            )
+            < TOXICITY_UNCERTAIN_DELTA
         )
-        < TOXICITY_UNCERTAIN_DELTA
-    )
 
-    toxicity_status = (
-        "uncertain"
-        if toxicity_uncertain
-        else "confident"
-    )
+        toxicity_status = (
+            "uncertain"
+            if toxicity_uncertain
+            else "confident"
+        )
 
 
     # -------------------------
@@ -722,6 +726,8 @@ Gunakan hasil model tersebut hanya sebagai sinyal tambahan,
 bukan sebagai kebenaran mutlak.
 
 PENTING TENTANG STATUS MODEL:
+- Jika status toxicity adalah "screening_disabled", jelaskan
+  bahwa penyaringan ketidakpastian toxicity tidak aktif.
 - Jika status toxicity adalah "uncertain", jangan menyatakan
   teks pasti toxic.
 - Jika status polarization adalah "uncertain", jangan menyatakan

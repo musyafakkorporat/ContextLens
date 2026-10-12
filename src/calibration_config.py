@@ -1,12 +1,11 @@
-# Calibration parameters learned from validation set.
-# Selective prediction deltas were selected on validation data
-# and evaluated once on the held-out test set.
+# Parameter kalibrasi dari validation set leakage-free v2.
+# Delta dipilih berdasarkan validation set, bukan test set.
 
-TOXICITY_TEMPERATURE = 1.434442
-POLARIZATION_TEMPERATURE = 1.368066
+TOXICITY_TEMPERATURE = 1.4313739720150536
+POLARIZATION_TEMPERATURE = 1.4153832106570687
 
 TOXICITY_RAW_THRESHOLD = 0.10
 POLARIZATION_RAW_THRESHOLD = 0.50
 
-TOXICITY_UNCERTAIN_DELTA = 0.04
-POLARIZATION_UNCERTAIN_DELTA = 0.28
+TOXICITY_UNCERTAIN_DELTA = 0.00
+POLARIZATION_UNCERTAIN_DELTA = 0.26
