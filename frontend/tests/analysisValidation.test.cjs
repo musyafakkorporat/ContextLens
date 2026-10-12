@@ -1,4 +1,5 @@
-﻿const test = require("node:test");
+/* eslint-disable @typescript-eslint/no-require-imports -- This Node.js test file intentionally uses CommonJS. */
+const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const {
