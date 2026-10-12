@@ -68,6 +68,7 @@ ContextLens/
 |-- src/
 |   |-- api.py
 |   |-- contextlens_pipeline.py
+|   |-- text_quality.py
 |   `-- calibration_config.py
 |-- research/
 |   `-- scripts/
@@ -78,14 +79,14 @@ ContextLens/
 |       |-- analyze_selective_prediction_leakage_free_v2.py
 |       |-- evaluate_leakage_free_v2_validation.py
 |       `-- evaluate_leakage_free_v2_test.py
+|-- tests/
+|   `-- test_text_quality.py
 |-- frontend/
-|   |-- src/
-|   |   `-- app/
-|   |       |-- page.tsx
-|   |       |-- layout.tsx
-|   |       `-- globals.css
-|   |-- package.json
-|   `-- .env.local
+|   |-- src/app/
+|   |   |-- page.tsx
+|   |   |-- layout.tsx
+|   |   `-- globals.css
+|   `-- package.json
 |-- docs/
 |   `-- functional_test_report.md
 |-- requirements.txt
@@ -94,11 +95,9 @@ ContextLens/
 `-- README.md
 ```
 
-Folder `src/` berisi kode utama backend. Folder `research/scripts/` menyimpan skrip persiapan data, pelatihan, kalibrasi, dan evaluasi. Skrip penelitian tidak perlu dijalankan saat menggunakan aplikasi utama.
+Folder `src/` berisi kode utama backend. Folder `research/scripts/` menyimpan skrip persiapan data, pelatihan, kalibrasi, dan evaluasi. Folder `tests/` berisi tes otomatis untuk pemeriksaan teks repetitif. Folder `docs/` berisi laporan pengujian fungsional.
 
-Folder `docs/` berisi dokumentasi pengujian fungsional. Dataset hasil pemrosesan, model lokal, dan hasil eksperimen tidak perlu diunggah ke GitHub kecuali ada kebutuhan yang jelas.
-
-File `.env` dan `frontend/.env.local` digunakan secara lokal. Jangan memasukkan kredensial ke dalam file yang di-commit.
+Dataset hasil pemrosesan, model lokal, dan hasil eksperimen tidak perlu diunggah ke GitHub. File `.env` dan `frontend/.env.local` digunakan secara lokal dan tidak boleh berisi kredensial yang ikut di-commit.
 
 ## Repository Model dan Referensi
 
@@ -108,9 +107,9 @@ Backend menggunakan tiga repository Hugging Face berikut:
 - **Polarization model v2:** [`muss05/contextlens-polarization-leakage-free-v2`](https://huggingface.co/muss05/contextlens-polarization-leakage-free-v2)
 - **Referensi MAFINDO:** [`muss05/contextlens-mafindo`](https://huggingface.co/datasets/muss05/contextlens-mafindo)
 
-Repository model dan dataset tersebut bersifat **private**. Pengguna perlu memiliki izin baca untuk mengaksesnya.
+Repository model dan dataset tersebut bersifat **private**. Pengguna perlu memiliki izin baca untuk mengaksesnya. Backend memerlukan koneksi internet untuk mengunduh aset yang belum tersedia di cache dan untuk memanggil Gemini API.
 
-Backend memerlukan koneksi internet untuk mengunduh aset yang belum tersedia di cache dan untuk memanggil Gemini API. Model lama tetap tersimpan di repository terpisah dan tidak digunakan oleh konfigurasi runtime v2 saat ini.
+Model lama tetap tersimpan di repository terpisah dan tidak digunakan oleh konfigurasi runtime v2 saat ini.
 
 ## Persyaratan
 
@@ -216,21 +215,21 @@ Untuk memeriksa build produksi frontend, jalankan dari folder `frontend`:
 npm run build
 ```
 
-## Pengujian
+## Menjalankan Tes Otomatis
+
+Aktifkan virtual environment, lalu jalankan perintah berikut dari root proyek:
+
+```powershell
+python -m unittest discover -s tests -v
+```
+
+Tes menggunakan `unittest` bawaan Python. Tes saat ini mencakup teks repetitif, kata berulang, teks normal, input kosong, whitespace, dan tanda baca. Tes unit ini tidak perlu memuat model besar atau memanggil Gemini API.
+
+## Pengujian Fungsional
 
 Laporan pengujian fungsional tersedia di [`docs/functional_test_report.md`](docs/functional_test_report.md).
 
-Skenario yang telah diuji mencakup:
-
-- Analisis teks biasa, penghinaan personal, dan teks bernada memecah belah.
-- Validasi input kosong.
-- Penolakan input melebihi 5.000 karakter.
-- Penerimaan input tepat 5.000 karakter.
-- Pencarian referensi MAFINDO untuk teks repetitif dan teks bermakna.
-- Pemrosesan hasil oleh Gemini.
-- Pemeriksaan sintaks backend dan production build frontend.
-
-Pengujian tersebut merupakan pengujian fungsional pada sejumlah contoh, bukan jaminan bahwa seluruh keluaran model benar.
+Skenario yang telah diuji mencakup analisis teks biasa, input kosong, batas maksimum 5.000 karakter, penolakan input 5.001 karakter, serta pencarian referensi MAFINDO untuk teks repetitif dan teks bermakna. Pengujian ini merupakan pemeriksaan fungsional pada sejumlah contoh, bukan jaminan bahwa seluruh keluaran model benar.
 
 ## Catatan Interpretasi Hasil
 
@@ -260,7 +259,7 @@ Metrik tersebut menunjukkan bahwa hasil model perlu ditafsirkan secara hati-hati
 
 ## Status Proyek
 
-ContextLens dikembangkan sebagai prototipe yang dijalankan secara lokal. Backend FastAPI dan endpoint `/analyze` telah diuji, frontend Next.js berhasil melewati production build, serta beberapa skenario pengujian fungsional telah dijalankan.
+ContextLens dikembangkan sebagai prototipe yang dijalankan secara lokal. Backend FastAPI dan endpoint `/analyze` telah diuji, frontend Next.js berhasil melewati production build, dan sejumlah skenario pengujian fungsional telah dijalankan.
 
 Deployment publik belum dikonfigurasi dalam versi ini.
 
